@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+
+# Datenbanken
+*.sqlite3
+*.db
+
+# Fotos (zu groß für GitHub)
+fotos/
+*.jpg
+*.jpeg
+*.png
+*.gif
+
+# Output-Dateien
+output/*.csv
+output/thumbnails/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+
+# Temporäre Dateien
+*.tmp
+*.bak

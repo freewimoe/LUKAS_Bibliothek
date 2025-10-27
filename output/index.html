@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>LUKAS-Bibliothek | Wir für Lukas e. V.</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: #f4f6fa;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      text-align: center;
+      color: #1f4b9d;
+      margin: 0;
+    }
+    #logo {
+      height: 80px;
+      margin-bottom: 1rem;
+    }
+    h1 {
+      font-size: 2rem;
+      margin: 0.5rem 0;
+    }
+    p {
+      color: #444;
+      max-width: 600px;
+      line-height: 1.5;
+      margin-bottom: 2rem;
+    }
+    #stats {
+      background: white;
+      border: 1px solid #d6d9e0;
+      border-radius: 8px;
+      padding: 0.8rem 1.2rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,.1);
+      font-size: 0.95rem;
+      color: #333;
+      margin-bottom: 2rem;
+    }
+    a.button {
+      background: #1f4b9d;
+      color: white;
+      padding: 0.8rem 1.4rem;
+      border-radius: 6px;
+      font-weight: bold;
+      text-decoration: none;
+      box-shadow: 0 2px 4px rgba(0,0,0,.2);
+      transition: background 0.2s;
+    }
+    a.button:hover {
+      background: #163a7a;
+    }
+    footer {
+      position: absolute;
+      bottom: 1rem;
+      width: 100%;
+      text-align: center;
+      color: #888;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+  <img id="logo" src="LUKAS-FORUM_Logo-2025-10-26.png" alt="LUKAS Forum Logo">
+  <h1>📚 LUKAS-Bibliothek</h1>
+  <p>
+    Die digitale Bibliothek der Lukaskirche Karlsruhe dokumentiert Bücher, Noten, Chroniken und Schriften 
+    aus dem Umfeld von <strong>Kirche, Kultur und Quartier</strong>.  
+    Sie wächst Schritt für Schritt durch Digitalisierung und ehrenamtliche Erfassung.
+  </p>
+
+  <div id="stats">📊 Daten werden geladen …</div>
+
+  <a href="LukasBibliothek.html" class="button">📖 Bibliothek öffnen</a>
+
+  <footer>
+    Wir für Lukas e. V. · LUKAS-Forum Karlsruhe · Version 1.0 Beta (2025-11)
+  </footer>
+
+  <script src="papaparse.min.js"></script>
+  <script>
+    async function loadStats(){
+      try {
+        const text = await fetch('lukas_bibliothek_v1.csv').then(r=>r.text());
+        const data = Papa.parse(text,{header:true}).data;
+        const total = data.length;
+        const withPhoto = data.filter(r=>r.cover_local).length;
+        const withOnline = data.filter(r=>r.cover_online).length;
+        const ocrOk = data.filter(r=>r.status_digitalisierung?.toLowerCase().includes('geprüft')).length;
+        document.getElementById('stats').innerHTML = 
+          `📚 <strong>${total}</strong> Bücher erfasst · 
+           🖼️ <strong>${withPhoto}</strong> mit Foto · 
+           🌐 <strong>${withOnline}</strong> mit Online-Cover · 
+           🔎 OCR geprüft: <strong>${ocrOk}</strong>`;
+      } catch(e) {
+        document.getElementById('stats').textContent = '⚠️ Keine Statistik verfügbar.';
+      }
+    }
+    loadStats();
+  </script>
+</body>
+</html>

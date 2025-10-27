@@ -1,0 +1,178 @@
+/* =====================================================
+   LUKAS-BIBLIOTHEK – GESAMTSTYLING
+   Design: Friedrich-Wilhelm Möller · Version 1.0 Beta (2025-11)
+   ===================================================== */
+
+/* --- Grundlayout --- */
+body {
+  font-family: "Segoe UI", sans-serif;
+  background: #f4f6fa;
+  margin: 0;
+  color: #1f4b9d;
+}
+
+/* --- Header mit Logo und Titel --- */
+header {
+  background: white;
+  padding: 1rem;
+  box-shadow: 0 2px 6px rgba(0,0,0,.1);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+#header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: .5rem;
+}
+
+#logo {
+  height: 50px;
+  width: auto;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+
+h1 {
+  font-size: 1.6rem;
+  margin: 0;
+}
+
+/* --- Banner mit Buchrücken --- */
+#banner {
+  display: flex;
+  overflow-x: auto;
+  margin: 0.5rem 0;
+  scrollbar-width: thin;
+}
+
+#banner img {
+  height: 80px;
+  object-fit: cover;
+  margin-right: 4px;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+
+/* --- Suchfeld --- */
+#search {
+  width: 100%;
+  padding: .6rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+/* --- Tabelle --- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+th {
+  background: #1f4b9d;
+  color: white;
+  padding: 8px;
+  text-align: left;
+  position: sticky;
+  top: 0;
+}
+
+td {
+  padding: 8px;
+  vertical-align: middle;
+  color: #222;
+}
+
+tr:nth-child(even) { background: #f7f9fc; }
+
+img.thumb {
+  height: 60px;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.2);
+}
+
+tr:hover {
+  background: #e6ebf6;
+}
+
+/* --- Fußzeile --- */
+footer {
+  margin-top: 2rem;
+  padding: 1rem;
+  text-align: center;
+  font-size: 0.9rem;
+  color: #777;
+  background: #f4f6fa;
+  border-top: 1px solid #d0d4de;
+}
+footer strong {
+  color: #1f4b9d;
+}
+footer .version {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.8rem;
+  color: #999;
+  letter-spacing: 0.3px;
+}
+
+/* =====================================================
+   RESPONSIVE DESIGN
+   ===================================================== */
+
+/* Tablet (quer): max. 1024px */
+@media (max-width: 1024px) {
+  #header-left h1 { font-size: 1.4rem; }
+  #banner img { height: 60px; }
+  img.thumb { height: 50px; }
+  th, td { padding: 6px; font-size: 0.95rem; }
+}
+
+/* Smartphone (hoch): max. 768px */
+@media (max-width: 768px) {
+  header { padding: 0.8rem; }
+  #header-left {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
+  }
+  #logo { height: 40px; }
+  #search { font-size: 1rem; padding: 0.5rem; margin-top: 0.4rem; }
+  table { display: block; width: 100%; overflow-x: auto; }
+  th { font-size: 0.9rem; }
+  td { font-size: 0.9rem; }
+  img.thumb { height: 45px; }
+  #banner img { height: 50px; }
+  footer { font-size: 0.8rem; padding: 0.8rem; }
+}
+
+/* Ultra-small (unter 480 px): Kompakte Karten-Ansicht */
+@media (max-width: 480px) {
+  table, thead, tbody, th, td, tr { display: block; }
+  thead { display: none; }
+  tr {
+    margin-bottom: 0.9rem;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.1);
+    padding: 0.6rem;
+  }
+  td {
+    border: none;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  td img.thumb { height: 60px; flex-shrink: 0; }
+  td::before {
+    content: attr(data-label);
+    font-weight: bold;
+    color: #1f4b9d;
+    width: 90px;
+    flex-shrink: 0;
+  }
+}

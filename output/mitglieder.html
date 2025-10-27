@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mitglieder · LUKAS-Bibliothek</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body {
+      font-family:"Segoe UI",sans-serif;
+      background:#f4f6fa;
+      margin:0;
+      padding:2rem;
+      color:#1f4b9d;
+      text-align:center;
+    }
+    #logo {height:70px;margin-bottom:1rem;}
+    h1 {margin-top:0.2rem;}
+    form {
+      background:white;
+      max-width:500px;
+      margin:2rem auto;
+      padding:1.2rem 1.6rem;
+      border-radius:8px;
+      box-shadow:0 2px 6px rgba(0,0,0,.1);
+      text-align:left;
+    }
+    label {display:block;margin-top:1rem;font-weight:bold;color:#333;}
+    input,textarea,select {
+      width:100%;
+      padding:0.5rem;
+      border:1px solid #ccc;
+      border-radius:6px;
+      margin-top:0.2rem;
+    }
+    input[type=file]{border:none;}
+    button {
+      margin-top:1.4rem;
+      background:#1f4b9d;
+      color:white;
+      border:none;
+      padding:0.7rem 1.2rem;
+      border-radius:6px;
+      cursor:pointer;
+      font-weight:bold;
+    }
+    button:hover{background:#163a7a;}
+    footer{margin-top:2rem;color:#888;font-size:0.85rem;}
+  </style>
+</head>
+<body>
+  <img id="logo" src="LUKAS-FORUM_Logo-2025-10-26.png" alt="LUKAS Forum Logo">
+  <h1>🔒 Mitgliederbereich · LUKAS-Bibliothek</h1>
+  <p>Hier können Vereinsmitglieder neue Bücher eintragen, Korrekturen melden oder Fotos hochladen.<br>
+     Die Eingaben werden in der zentralen Datenbank gespeichert, sobald sie freigegeben sind.</p>
+
+  <form id="bookForm">
+    <label>Titel</label>
+    <input type="text" name="title" required>
+
+    <label>Autor</label>
+    <input type="text" name="author" required>
+
+    <label>Signatur</label>
+    <input type="text" name="signatur">
+
+    <label>Regal / Fach</label>
+    <input type="text" name="regal">
+
+    <label>Status</label>
+    <select name="status">
+      <option value="neu">neu</option>
+      <option value="korrigiert">korrigiert</option>
+      <option value="zu prüfen">zu prüfen</option>
+    </select>
+
+    <label>Foto (optional)</label>
+    <input type="file" name="photo" accept="image/*">
+
+    <label>Bemerkungen</label>
+    <textarea name="notes" rows="3"></textarea>
+
+    <button type="submit">📥 Eintrag senden</button>
+  </form>
+
+  <p id="message"></p>
+
+  <footer>
+    Wir für Lukas e. V. · LUKAS-Forum Karlsruhe · Version 1.0 Beta (2025-11)
+  </footer>
+
+  <script>
+    document.getElementById('bookForm').addEventListener('submit',async e=>{
+      e.preventDefault();
+      const form=new FormData(e.target);
+      document.getElementById('message').textContent="⏳ Eintrag wird übertragen …";
+      try{
+        // Platzhalter: hier später Verbindung zu Nextcloud / n8n API
+        await new Promise(r=>setTimeout(r,1200));
+        document.getElementById('message').textContent="✅ Eintrag erfolgreich übermittelt (demnächst sichtbar in der Bibliothek).";
+        e.target.reset();
+      }catch(err){
+        document.getElementById('message').textContent="⚠️ Übertragung fehlgeschlagen.";
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>LUKAS-Bibliothek | Wir für Lukas e. V.</title>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- PapaParse (CSV Parser) -->
+  <script src="papaparse.min.js"></script>
+</head>
+<body>
+
+  <!-- ================= HEADER ================= -->
+  <header>
+    <div id="header-left">
+      <img id="logo" src="LUKAS-FORUM_Logo-2025-10-26.png" alt="LUKAS Forum Logo" />
+      <h1>📚 LUKAS-Bibliothek</h1>
+    </div>
+
+    <!-- Dynamischer Banner mit Buchrücken -->
+    <div id="banner"></div>
+
+    <!-- Suchfeld -->
+    <input type="text" id="search" placeholder="Suche nach Autor, Titel oder Signatur …" />
+  </header>
+
+  <!-- ================= HAUPTBEREICH ================= -->
+  <main>
+    <table id="books">
+      <thead>
+        <tr>
+          <th>Cover</th>
+          <th>Autor</th>
+          <th>Titel</th>
+          <th>Signatur</th>
+          <th>Regal</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Buchdaten werden dynamisch von bibliothek.js eingefügt -->
+      </tbody>
+    </table>
+  </main>
+
+  <!-- ================= FOOTER ================= -->
+  <footer>
+    <p>
+      Ein Projekt von <strong>Wir für Lukas e. V.</strong> · LUKAS-Forum Karlsruhe · © 2025
+      <span class="version">LUKAS-Bibliothek v1.0 – Beta (Stand November 2025)</span>
+    </p>
+  </footer>
+
+  <!-- ================= SCRIPTS ================= -->
+  <script src="bibliothek.js"></script>
+</body>
+</html>
