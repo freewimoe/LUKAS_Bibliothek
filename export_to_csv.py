@@ -28,7 +28,8 @@ SELECT
     c.cover_local,
     c.cover_online,
     b.publication_year,
-    b.language
+    b.language,
+    COALESCE(b.isbn_13, b.isbn_10) AS isbn
 FROM books b
 LEFT JOIN authors a ON b.author_id = a.id
 LEFT JOIN copies c ON b.id = c.book_id
@@ -45,7 +46,7 @@ with open(CSV_PATH, 'w', newline='', encoding='utf-8') as f:
     # Header
     writer.writerow([
         'id', 'author', 'title', 'signatur', 'regal', 'fach', 
-        'zustand', 'status_digitalisierung', 'cover_local', 'cover_online', 'year', 'language'
+        'zustand', 'status_digitalisierung', 'cover_local', 'cover_online', 'year', 'language', 'isbn'
     ])
     
     # Daten

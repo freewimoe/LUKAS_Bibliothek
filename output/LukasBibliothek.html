@@ -24,6 +24,15 @@
 
     <!-- Suchfeld -->
     <input type="text" id="search" placeholder="Suche nach Autor, Titel oder Signatur …" />
+
+    <!-- Offline-Modus: CSV aus Datei laden -->
+    <div id="offline-box" style="display:none; margin-top: .5rem;">
+      <label style="font-size:.95rem; color:#444;">
+        🔒 Offline-Modus erkannt (file://). Wählen Sie die CSV aus:
+        <input type="file" id="csvFile" accept=".csv" />
+      </label>
+      <div style="font-size:.85rem; color:#666; margin-top:.25rem;">Tipp: wählen Sie die Datei <code>output/lukas_bibliothek_v1.csv</code>.</div>
+    </div>
   </header>
 
   <!-- ================= HAUPTBEREICH ================= -->

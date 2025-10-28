@@ -11,14 +11,61 @@ import glob
 
 DB_PATH = "output/lukas_bibliothek_v1.sqlite3"
 
+def _load_books_from_file(path):
+    """Robust JSON loader: supports proper JSON arrays and loose object lists.
+    Returns a Python list of book dicts.
+    """
+    with open(path, 'r', encoding='utf-8') as f:
+        txt = f.read().strip()
+
+    # Try normal JSON first
+    try:
+        data = json.loads(txt)
+        if isinstance(data, dict):
+            return [data]
+        return list(data)
+    except Exception:
+        pass
+
+    # Try wrapping loose objects into an array
+    try:
+        candidate = txt
+        if not candidate.lstrip().startswith('['):
+            candidate = '[' + candidate
+        candidate = candidate.rstrip().rstrip(',')
+        if not candidate.endswith(']'):
+            candidate = candidate + ']'
+        data = json.loads(candidate)
+        return list(data)
+    except Exception:
+        pass
+
+    # Fallback: stream parser by object depth
+    objs = []
+    buf = ''
+    depth = 0
+    for ch in txt:
+        buf += ch
+        if ch == '{':
+            depth += 1
+        elif ch == '}':
+            depth -= 1
+            if depth == 0:
+                try:
+                    objs.append(json.loads(buf))
+                except Exception:
+                    pass
+                buf = ''
+    return objs
+
+
 def import_json_to_db(json_file):
     """Importiert eine JSON-Datei in die Datenbank"""
     
     print(f"\n📖 Verarbeite: {json_file}")
     
     # JSON laden
-    with open(json_file, 'r', encoding='utf-8') as f:
-        books = json.load(f)
+    books = _load_books_from_file(json_file)
     
     print(f"   {len(books)} Bücher gefunden")
     

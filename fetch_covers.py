@@ -14,6 +14,7 @@ import sqlite3
 from typing import Optional, Tuple
 
 import requests
+from requests.exceptions import RequestException
 from PIL import Image, ImageDraw, ImageFont
 
 DB_PATH = "output/lukas_bibliothek_v1.sqlite3"
@@ -22,6 +23,8 @@ PLACEHOLDER_PATH = "output/placeholder.jpg"
 THUMB_SIZE = (240, 360)  # WxH
 TIMEOUT = 12
 HEADERS = {"User-Agent": "LUKAS-Bibliothek/1.0 (+https://github.com/freewimoe/LUKAS_Bibliothek)"}
+PLACEHOLDER_REL = "placeholder.jpg"
+SQL_UPD_BOTH = "UPDATE copies SET cover_local=?, cover_online=? WHERE id=?"
 
 
 def ensure_dirs():
@@ -54,6 +57,25 @@ def make_placeholder():
     d.multiline_text(((THUMB_SIZE[0]-w)//2, (THUMB_SIZE[1]-h)//2), title, fill=(60, 65, 80), font=font, align="center", spacing=4)
     d.rectangle([(10, 10), (THUMB_SIZE[0]-10, THUMB_SIZE[1]-10)], outline=(160, 165, 180), width=2)
     img.save(PLACEHOLDER_PATH, format="JPEG", quality=85)
+
+
+def check_connectivity() -> bool:
+    """Quick connectivity/DNS check against cover providers.
+    Returns True if at least one provider is reachable, else False.
+    """
+    endpoints = [
+        ("https://openlibrary.org", {}),
+        ("https://covers.openlibrary.org", {}),
+        ("https://www.googleapis.com", {}),
+    ]
+    for url, params in endpoints:
+        try:
+            r = requests.get(url, params=params, timeout=5, headers=HEADERS)
+            if r.status_code < 500:
+                return True
+        except RequestException:
+            continue
+    return False
 
 
 def normalize_isbn(isbn: Optional[str]) -> Optional[str]:
@@ -158,6 +180,10 @@ def main():
     ensure_dirs()
     make_placeholder()
 
+    online = check_connectivity()
+    if not online:
+        print("🌐 Kein Internet/DNS nicht erreichbar – setze Platzhalter-Cover lokal.")
+
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
 
@@ -179,22 +205,28 @@ def main():
     updated = 0
 
     for (book_id, title, author, isbn13, isbn10, copy_id, cover_local, cover_online) in rows:
-        # Skip if we already have a local cover file
-        if cover_local and os.path.exists(os.path.join("output", cover_local) if not cover_local.startswith("output/") else cover_local):
+        # Skip if we already have a valid local cover file
+        if cover_local:
+            check_path = os.path.join("output", cover_local) if not cover_local.startswith("output/") else cover_local
+            if os.path.exists(check_path):
+                continue
+
+        if not online:
+            # Offline: set placeholder and skip network
+            c.execute("UPDATE copies SET cover_local=? WHERE id=?", (PLACEHOLDER_REL, copy_id))
+            updated += 1
             continue
 
+        # Online: try providers
         url = pick_cover_url(title or "", author or "", isbn13 or None, isbn10 or None)
         if not url:
-            # Set placeholder if nothing found
-            new_local = "placeholder.jpg"
-            c.execute("UPDATE copies SET cover_local=?, cover_online=? WHERE id=?", (new_local, cover_online or "", copy_id))
+            c.execute(SQL_UPD_BOTH, (PLACEHOLDER_REL, cover_online or "", copy_id))
             updated += 1
             continue
 
         img_bytes = download_image(url)
         if not img_bytes:
-            new_local = "placeholder.jpg"
-            c.execute("UPDATE copies SET cover_local=?, cover_online=? WHERE id=?", (new_local, cover_online or url, copy_id))
+            c.execute(SQL_UPD_BOTH, (PLACEHOLDER_REL, cover_online or url, copy_id))
             updated += 1
             continue
 
