@@ -26,12 +26,13 @@ SELECT
     c.zustand,
     c.status_digitalisierung,
     c.cover_local,
+    c.cover_online,
     b.publication_year,
     b.language
 FROM books b
 LEFT JOIN authors a ON b.author_id = a.id
 LEFT JOIN copies c ON b.id = c.book_id
-ORDER BY c.signatur, a.name, b.title
+ORDER BY COALESCE(c.signatur, ''), a.name, b.title
 """
 
 c.execute(query)
@@ -44,7 +45,7 @@ with open(CSV_PATH, 'w', newline='', encoding='utf-8') as f:
     # Header
     writer.writerow([
         'id', 'author', 'title', 'signatur', 'regal', 'fach', 
-        'zustand', 'status', 'cover', 'year', 'language'
+        'zustand', 'status_digitalisierung', 'cover_local', 'cover_online', 'year', 'language'
     ])
     
     # Daten
