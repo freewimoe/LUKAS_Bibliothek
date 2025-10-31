@@ -18,6 +18,12 @@ fotos/
 *.png
 *.gif
 
+# Aber: alle Bilder innerhalb von output/ sollen NICHT ignoriert werden (für GitHub Pages)
+!output/**/*.jpg
+!output/**/*.jpeg
+!output/**/*.png
+!output/**/*.gif
+
 # (Ausnahmen am Ende der Output-Sektion ergänzen)
 
 # Output-Dateien
