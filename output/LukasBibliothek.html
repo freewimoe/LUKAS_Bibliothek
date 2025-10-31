@@ -22,8 +22,45 @@
     <!-- Dynamischer Banner mit Buchrücken -->
     <div id="banner"></div>
 
-    <!-- Suchfeld -->
-    <input type="text" id="search" placeholder="Suche nach Autor, Titel oder Signatur …" />
+    <!-- Suchfeld + Steuerleiste -->
+    <input type="text" id="search" placeholder="Suche nach Autor, Titel, Signatur, Verlag …" />
+    <div id="toolbar">
+      <div class="tool">
+        <label for="groupBy">Gruppe nach:</label>
+        <select id="groupBy">
+          <option value="none">Keine</option>
+          <option value="fach">Fach</option>
+          <option value="regal">Regal</option>
+          <option value="author">Autor</option>
+          <option value="publisher">Verlag</option>
+          <option value="status_digitalisierung">Status</option>
+        </select>
+      </div>
+      <div class="tool" id="groupButtons" aria-label="Schnellauswahl Kategorien">
+        <button type="button" class="btn outline" data-group="none">Alle</button>
+        <button type="button" class="btn outline" data-group="fach">Fach</button>
+        <button type="button" class="btn outline" data-group="regal">Regal</button>
+        <button type="button" class="btn outline" data-group="author">Autor</button>
+        <button type="button" class="btn outline" data-group="publisher">Verlag</button>
+        <button type="button" class="btn outline" data-group="status_digitalisierung">Status</button>
+      </div>
+      <div class="tool">
+        <label for="sortBy">Sortierung:</label>
+        <select id="sortBy">
+          <option value="quality" selected>Qualität (beste zuerst)</option>
+          <option value="author">Autor</option>
+          <option value="title">Titel</option>
+          <option value="year">Jahr</option>
+          <option value="signatur">Signatur</option>
+        </select>
+      </div>
+      <div class="tool">
+        <label><input type="checkbox" id="onlyCover"> nur mit Cover</label>
+      </div>
+      <div class="tool">
+        <label><input type="checkbox" id="onlyDesc"> nur mit Beschreibung</label>
+      </div>
+    </div>
 
     <!-- Offline-Modus: CSV aus Datei laden -->
     <div id="offline-box" style="display:none; margin-top: .5rem;">
@@ -37,12 +74,42 @@
 
   <!-- ================= HAUPTBEREICH ================= -->
   <main>
+    <!-- Detail-Modal -->
+    <div id="detail-modal" class="modal" style="display:none;">
+      <div class="modal-backdrop" data-close></div>
+      <div class="modal-content">
+        <button class="modal-close" data-close aria-label="Schließen">×</button>
+        <div class="modal-body">
+          <div class="detail-cover"><img id="detail-cover" alt="Cover"></div>
+          <div class="detail-info">
+            <h2 id="detail-title">Titel</h2>
+            <div class="detail-meta">
+              <div><strong>Autor:</strong> <span id="detail-author"></span></div>
+              <div><strong>Verlag:</strong> <span id="detail-publisher"></span></div>
+              <div><strong>Signatur:</strong> <span id="detail-signatur"></span></div>
+              <div><strong>Regal:</strong> <span id="detail-regal"></span></div>
+              <div><strong>Status:</strong> <span id="detail-status"></span></div>
+              <div><strong>Jahr:</strong> <span id="detail-year"></span></div>
+              <div><strong>ISBN:</strong> <span id="detail-isbn"></span></div>
+            </div>
+            <div class="detail-description" id="detail-description"></div>
+            <div class="detail-actions">
+              <button id="reserve-btn" class="button">Reservieren / Anfragen</button>
+              <button id="copy-btn" class="button secondary">Buchdaten kopieren</button>
+            </div>
+            <div id="copy-hint" class="hint" style="display:none;">📋 In Zwischenablage kopiert</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <table id="books">
       <thead>
         <tr>
           <th>Cover</th>
           <th>Autor</th>
           <th>Titel</th>
+          <th>Verlag</th>
           <th>Signatur</th>
           <th>Regal</th>
           <th>Status</th>
@@ -53,6 +120,9 @@
       </tbody>
     </table>
   </main>
+
+  <!-- Hover-Karte für schnelle Details -->
+  <div id="hover-card" class="hover-card" style="display:none;"></div>
 
   <!-- ================= FOOTER ================= -->
   <footer>

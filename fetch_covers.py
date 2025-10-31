@@ -11,6 +11,7 @@ import os
 import re
 import io
 import sqlite3
+import argparse
 from typing import Optional, Tuple
 
 import requests
@@ -21,7 +22,8 @@ DB_PATH = "output/lukas_bibliothek_v1.sqlite3"
 THUMBS_DIR = "output/thumbnails"
 PLACEHOLDER_PATH = "output/placeholder.jpg"
 THUMB_SIZE = (240, 360)  # WxH
-TIMEOUT = 12
+TIMEOUT_DEFAULT = 12
+TIMEOUT = TIMEOUT_DEFAULT
 HEADERS = {"User-Agent": "LUKAS-Bibliothek/1.0 (+https://github.com/freewimoe/LUKAS_Bibliothek)"}
 PLACEHOLDER_REL = "placeholder.jpg"
 SQL_UPD_BOTH = "UPDATE copies SET cover_local=?, cover_online=? WHERE id=?"
@@ -177,6 +179,13 @@ def pick_cover_url(title: str, author: str, isbn13: Optional[str], isbn10: Optio
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Fetch and generate cover thumbnails")
+    parser.add_argument("--limit", type=int, default=0, help="Maximale Anzahl fehlender Cover zu verarbeiten (0 = alle)")
+    parser.add_argument("--timeout", type=float, default=TIMEOUT_DEFAULT, help="HTTP-Timeout in Sekunden je Anfrage")
+    args = parser.parse_args()
+
+    timeout = float(args.timeout) if args.timeout and args.timeout > 0 else TIMEOUT_DEFAULT
+
     ensure_dirs()
     make_placeholder()
 
@@ -203,6 +212,7 @@ def main():
     total = len(rows)
     downloaded = 0
     updated = 0
+    processed_missing = 0
 
     for (book_id, title, author, isbn13, isbn10, copy_id, cover_local, cover_online) in rows:
         # Skip if we already have a valid local cover file
@@ -211,6 +221,11 @@ def main():
             if os.path.exists(check_path):
                 continue
 
+        # Respect limit (on items that actually need work)
+        processed_missing += 1
+        if args.limit and processed_missing > args.limit:
+            break
+
         if not online:
             # Offline: set placeholder and skip network
             c.execute("UPDATE copies SET cover_local=? WHERE id=?", (PLACEHOLDER_REL, copy_id))
@@ -218,6 +233,10 @@ def main():
             continue
 
         # Online: try providers
+        # Patch TIMEOUT used by helper functions via monkey-patching the module-level constant
+        global TIMEOUT
+        TIMEOUT = timeout
+
         url = pick_cover_url(title or "", author or "", isbn13 or None, isbn10 or None)
         if not url:
             c.execute(SQL_UPD_BOTH, (PLACEHOLDER_REL, cover_online or "", copy_id))
@@ -242,7 +261,7 @@ def main():
     conn.commit()
     conn.close()
 
-    print(f"✅ Cover-Update: {updated} Einträge aktualisiert, {downloaded} Bilder heruntergeladen (von {total}).")
+    print(f"✅ Cover-Update: {updated} Einträge aktualisiert, {downloaded} Bilder heruntergeladen (von {total}, fehlend bearbeitet: {processed_missing}).")
     # Re-export CSV for the website
     os.system('python export_to_csv.py')
 
