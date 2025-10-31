@@ -58,6 +58,7 @@ function keepRow(r){
 
 function init(){
   const isHttp = (location.protocol === 'http:' || location.protocol === 'https:');
+  loadCollapsedState();
   if (!isHttp){
     // Offline-Modus: Nutzer muss CSV per Dateiauswahl bereitstellen
   document.getElementById('offline-box').style.display = 'block';
@@ -111,6 +112,25 @@ let CURRENT_SORT = 'quality';
 let ONLY_COVER = false;
 let ONLY_DESC = false;
 const COLLAPSED_GROUPS = new Set();
+const STORAGE_KEY_COLLAPSE = 'lukas_bib_collapsed_groups_v1';
+
+function loadCollapsedState(){
+  try {
+    const raw = globalThis.localStorage?.getItem(STORAGE_KEY_COLLAPSE);
+    if (!raw) return;
+    const arr = JSON.parse(raw);
+    if (Array.isArray(arr)){
+      COLLAPSED_GROUPS.clear();
+      for (const k of arr){ COLLAPSED_GROUPS.add(String(k)); }
+    }
+  } catch(e){ console.warn('loadCollapsedState failed', e); }
+}
+function saveCollapsedState(){
+  try {
+    const arr = Array.from(COLLAPSED_GROUPS);
+    globalThis.localStorage?.setItem(STORAGE_KEY_COLLAPSE, JSON.stringify(arr));
+  } catch(e){ console.warn('saveCollapsedState failed', e); }
+}
 
 function formatAuthorDisplay(raw){
   if(!raw) return '';
@@ -390,6 +410,7 @@ function renderGroupedRows(rows, groupBy, body){
     gr.addEventListener('click', ()=>{
       const key = `${groupBy}::${g}`;
       if (COLLAPSED_GROUPS.has(key)) COLLAPSED_GROUPS.delete(key); else COLLAPSED_GROUPS.add(key);
+      saveCollapsedState();
       renderTable(rows, groupBy);
     });
     body.appendChild(gr);
