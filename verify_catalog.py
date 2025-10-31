@@ -6,16 +6,19 @@ Goals
 - Find suspicious records (ISBN not found, title/author mismatch, missing/placeholder cover)
 - Propose safer fixes (ISBN and cover URL) when a high-confidence match exists
 - Produce a CSV report and optional JSON for further processing
+- Optional safe apply that never overwrites title/author: fill only missing ISBN when
+    title+author anchor matches at high confidence.
 
 Usage (local):
-  python verify_catalog.py --csv output/lukas_bibliothek_v1.csv --report output/validation_report.csv
+    python verify_catalog.py --csv output/lukas_bibliothek_v1.csv --report output/validation_report.csv
 
 Options:
-  --apply-safe           Apply only safe fixes (NOT enabled by default). Currently: fill missing ISBN when a
-                         very high-confidence match by title+author is found; does not overwrite existing values.
-  --max-requests N       Cap outbound API calls (to be friendly to public APIs)
-  --timeout SEC          HTTP timeout per request (default 6)
-  --cache FILE           JSON cache file for API responses (default output/metadata_cache.json)
+    --apply-safe           Apply only safe fixes: fill missing ISBN if title+author similarity ≥ 0.80 for both.
+                                                 Writes an updated CSV (see --fixed-out). Never overwrites title/author.
+    --fixed-out PATH       Output path for updated CSV (default output/lukas_bibliothek_v1.fixed.csv)
+    --max-requests N       Cap outbound API calls (to be friendly to public APIs)
+    --timeout SEC          HTTP timeout per request (default 6)
+    --cache FILE           JSON cache file for API responses (default output/metadata_cache.json)
 
 This script purposefully has zero third‑party deps.
 """
@@ -32,7 +35,7 @@ import urllib.parse
 import urllib.request
 from collections import Counter, defaultdict
 from difflib import SequenceMatcher
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, List
 
 # ---------- Utils ----------
 
@@ -259,16 +262,26 @@ STATUS_FIELDS = [
 ]
 
 
-def load_rows(csv_path: str) -> list[dict]:
+def load_rows(csv_path: str) -> Tuple[List[dict], List[str]]:
     with open(csv_path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         rows = [dict(r) for r in reader]
-    return rows
+        fieldnames = reader.fieldnames or []
+    return rows, fieldnames
 
 
 def write_report(rows: list[dict], out_path: str) -> None:
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     fieldnames = FIELDS + STATUS_FIELDS
+    with open(out_path, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=fieldnames)
+        w.writeheader()
+        for r in rows:
+            w.writerow({k: r.get(k, "") for k in fieldnames})
+
+
+def write_fixed_csv(out_path: str, fieldnames: List[str], rows: List[dict]) -> None:
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
     with open(out_path, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=fieldnames)
         w.writeheader()
@@ -284,9 +297,10 @@ def main(argv: Optional[list[str]] = None) -> int:
     ap.add_argument("--max-requests", type=int, default=1000)
     ap.add_argument("--cache", default="output/metadata_cache.json")
     ap.add_argument("--apply-safe", action="store_true", help="Apply very safe fixes (missing ISBN only)")
+    ap.add_argument("--fixed-out", default="output/lukas_bibliothek_v1.fixed.csv", help="Updated CSV path when applying safe fixes")
     args = ap.parse_args(argv)
 
-    rows = load_rows(args.csv)
+    rows, input_fields = load_rows(args.csv)
 
     # duplicate ISBNs
     isbn_counts = Counter([ (r.get("isbn") or "").strip() for r in rows if r.get("isbn") ])
@@ -295,6 +309,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     requests_left = args.max_requests
 
     report_rows = []
+    changed = 0
     for r in rows:
         title = r.get("title") or ""
         author = r.get("author") or ""
@@ -368,6 +383,10 @@ def main(argv: Optional[list[str]] = None) -> int:
                             "cover": meta.get("cover"),
                             "source": meta.get("source")
                         })
+                        # optional safe apply (anchor: title+author)
+                        if args.apply_safe and t_sim >= 0.80 and a_sim >= 0.80 and not r.get("isbn"):
+                            r["isbn"] = meta.get("isbn")
+                            changed += 1
                     else:
                         flags.append("NEED_REVIEW_NO_ISBN")
                 else:
@@ -394,6 +413,15 @@ def main(argv: Optional[list[str]] = None) -> int:
     print(f"Checked {len(rows)} records. Report: {args.report}")
     suspicious = sum(1 for r in report_rows if r.get("status"))
     print(f"Suspicious/flagged rows: {suspicious}")
+
+    if args.apply_safe and changed:
+        # Preserve original input field order for the fixed CSV
+        out_fields = input_fields or []
+        if not out_fields:
+            # fallback: reconstruct from first row
+            out_fields = list(rows[0].keys()) if rows else []
+        write_fixed_csv(args.fixed_out, out_fields, rows)
+        print(f"Safe applied: {changed} ISBN(s) added. Updated CSV: {args.fixed_out}")
 
     return 0
 
