@@ -87,9 +87,12 @@ function init(){
     return;
   }
 
-  // Online (HTTP/S): CSV via fetch
+  // Online (HTTP/S): CSV via fetch (fallback: parent folder for mixed deploy setups)
   fetch('lukas_bibliothek_v1.csv')
-    .then(r => r.text())
+    .then(r => r.ok ? r.text() : fetch('../lukas_bibliothek_v1.csv').then(r2 => {
+      if (!r2.ok) throw new Error('CSV not found in ./ or ../');
+      return r2.text();
+    }))
     .then(text => {
       const all = Papa.parse(text,{header:true}).data.filter(r => r.title || r.author);
       const data = all.filter(keepRow);

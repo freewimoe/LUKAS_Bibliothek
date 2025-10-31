@@ -15,7 +15,7 @@
   <!-- ================= HEADER ================= -->
   <header>
     <div id="header-left">
-      <img id="logo" src="LUKAS-FORUM_Logo-2025-10-26.png" alt="LUKAS Forum Logo" />
+  <img id="logo" src="LUKAS-FORUM_Logo-2025-10-26.png" alt="LUKAS Forum Logo" />
       <h1>📚 LUKAS-Bibliothek</h1>
     </div>
 
@@ -137,5 +137,16 @@
 
   <!-- ================= SCRIPTS ================= -->
   <script src="bibliothek.js"></script>
+  <script>
+    // Logo-Fallback (unterstützt Deploy auf / und /output/)
+    (function(){
+      var img = document.getElementById('logo');
+      if (!img) return;
+      img.addEventListener('error', function handler(){
+        img.removeEventListener('error', handler);
+        img.src = '../LUKAS-FORUM_Logo-2025-10-26.png';
+      });
+    })();
+  </script>
 </body>
 </html>
