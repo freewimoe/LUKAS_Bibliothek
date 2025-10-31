@@ -150,7 +150,7 @@ footer .version {
 }
 
 /* --- Modal (Buchdetails) --- */
-.modal { position: fixed; inset: 0; z-index: 200; }
+.modal { position: fixed; inset: 0; z-index: 200; overflow: auto; }
 .modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.45); }
 .modal-content {
   position: relative;
@@ -160,6 +160,8 @@ footer .version {
   border-radius: 10px;
   box-shadow: 0 8px 24px rgba(0,0,0,.25);
   padding: 1rem 1rem 1.2rem;
+  max-height: 92vh;
+  overflow: auto;
 }
 .modal-close { position: absolute; top: 8px; right: 10px; border: none; background: transparent; font-size: 1.6rem; cursor: pointer; color: #666; }
 .modal-body { display: grid; grid-template-columns: 260px 1fr; gap: 1rem; }
@@ -191,6 +193,10 @@ footer .version {
 
 @media (max-width: 768px){
   .modal-body { grid-template-columns: 1fr; }
+  .detail-cover img { width: 70vw; max-height: 60vh; margin: 0 auto; display: block; }
+  .detail-description { font-size: 1rem; line-height: 1.5; }
+  /* Hover-Karte auf Touch-Geräten ausblenden */
+  .hover-card { display: none !important; }
 }
 
 /* =====================================================

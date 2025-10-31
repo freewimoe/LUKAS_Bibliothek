@@ -8,6 +8,9 @@
  * ermöglicht Live-Suche und Fallback für Coverbilder.
  */
 
+// Touch-/Hover-Erkennung
+const IS_TOUCH = ('ontouchstart' in globalThis) || (navigator && navigator.maxTouchPoints > 0);
+
 function hasManyNoiseChars(s){
   const noise = s.match(/[\\/{}|<>+=_*^~`§°µ•·“”„›‹«»¤¢£¥©®™¶…–—]/g);
   return noise && noise.length >= 3;
@@ -335,6 +338,8 @@ function rowToDetailText(r){
 function openDetail(r){
   LAST_SCROLL_Y = window.scrollY || 0;
   const modal = document.getElementById('detail-modal');
+  // Hover-Karte sicher ausblenden
+  if (HOVERCARD) { HOVERCARD.style.display = 'none'; }
   const cover = r.cover_local || r.cover_online || 'placeholder.jpg';
   document.getElementById('detail-cover').src = cover;
   document.getElementById('detail-title').textContent = r.title || '';
@@ -349,7 +354,7 @@ function openDetail(r){
   const descEl = document.getElementById('detail-description');
   if (rawDesc){
     descEl.style.display = 'block';
-    const limit = 280;
+    const limit = (globalThis.innerWidth && globalThis.innerWidth <= 768) ? 420 : 280;
     if (rawDesc.length <= limit){
       descEl.textContent = rawDesc;
     } else {
@@ -588,6 +593,8 @@ function ensureHoverCard(){
   if (!HOVERCARD){ HOVERCARD = document.getElementById('hover-card'); }
 }
 function attachHover(tr, r){
+  // Auf Touch-Geräten keine Hover-Karte anzeigen
+  if (IS_TOUCH) return;
   ensureHoverCard();
   const show = (e)=>{
     const cover = r.cover_local || r.cover_online || 'placeholder.jpg';
