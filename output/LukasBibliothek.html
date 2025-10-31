@@ -85,11 +85,13 @@
     <div id="detail-modal" class="modal" style="display:none;">
       <div class="modal-backdrop" data-close></div>
       <div class="modal-content">
-        <button class="modal-close" data-close aria-label="Schließen">×</button>
+        <div class="modal-header">
+          <h2 id="detail-title">Titel</h2>
+          <button class="modal-close" data-close aria-label="Schließen">×</button>
+        </div>
         <div class="modal-body">
           <div class="detail-cover"><img id="detail-cover" alt="Cover"></div>
           <div class="detail-info">
-            <h2 id="detail-title">Titel</h2>
             <div class="detail-description" id="detail-description"></div>
             <div class="detail-meta">
               <div><strong>Autor:</strong> <span id="detail-author"></span></div>
@@ -103,8 +105,10 @@
             <div class="detail-actions">
               <button id="reserve-btn" class="button">Reservieren / Anfragen</button>
               <button id="copy-btn" class="button secondary">Buchdaten kopieren</button>
+              <button id="share-btn" class="button secondary">Link teilen</button>
             </div>
             <div id="copy-hint" class="hint" style="display:none;">📋 In Zwischenablage kopiert</div>
+            <div id="share-hint" class="hint" style="display:none;">🔗 Link kopiert</div>
           </div>
         </div>
       </div>

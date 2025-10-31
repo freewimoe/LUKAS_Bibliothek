@@ -354,30 +354,36 @@ function openDetail(r){
   const descEl = document.getElementById('detail-description');
   if (rawDesc){
     descEl.style.display = 'block';
-    const limit = (globalThis.innerWidth && globalThis.innerWidth <= 768) ? 420 : 280;
-    if (rawDesc.length <= limit){
+    const isMobile = (globalThis.innerWidth && globalThis.innerWidth <= 768);
+    if (isMobile){
+      // Auf Mobil ganze Beschreibung ohne Toggle
       descEl.textContent = rawDesc;
     } else {
-      const short = rawDesc.slice(0, limit).trim() + ' … ';
-      descEl.innerHTML = '';
-      const span = document.createElement('span');
-      span.textContent = short;
-      const btn = document.createElement('button');
-      btn.className = 'linklike';
-      btn.textContent = 'Mehr anzeigen';
-      let expanded = false;
-      btn.onclick = () => {
-        expanded = !expanded;
-        if (expanded){
-          span.textContent = rawDesc + ' ';
-          btn.textContent = 'Weniger anzeigen';
-        } else {
-          span.textContent = short;
-          btn.textContent = 'Mehr anzeigen';
-        }
-      };
-      descEl.appendChild(span);
-      descEl.appendChild(btn);
+      const limit = 280;
+      if (rawDesc.length <= limit){
+        descEl.textContent = rawDesc;
+      } else {
+        const short = rawDesc.slice(0, limit).trim() + ' … ';
+        descEl.innerHTML = '';
+        const span = document.createElement('span');
+        span.textContent = short;
+        const btn = document.createElement('button');
+        btn.className = 'linklike';
+        btn.textContent = 'Mehr anzeigen';
+        let expanded = false;
+        btn.onclick = () => {
+          expanded = !expanded;
+          if (expanded){
+            span.textContent = rawDesc + ' ';
+            btn.textContent = 'Weniger anzeigen';
+          } else {
+            span.textContent = short;
+            btn.textContent = 'Mehr anzeigen';
+          }
+        };
+        descEl.appendChild(span);
+        descEl.appendChild(btn);
+      }
     }
   } else {
     descEl.textContent = '';
@@ -402,6 +408,33 @@ function openDetail(r){
       console.error('Clipboard nicht verfügbar', e);
     }
   };
+
+  // Link teilen (Web Share API oder Clipboard)
+  const shareEl = document.getElementById('share-btn');
+  if (shareEl){
+    shareEl.onclick = async () => {
+      const p = parseHashParams();
+      if (r.id) p.b = String(r.id);
+      const hash = buildHashFromParams(p);
+      const url = location.origin + location.pathname + (hash ? ('#' + hash) : '');
+      try {
+        if (navigator.share){
+          await navigator.share({ title: r.title || 'Buch', url });
+        } else if (navigator.clipboard){
+          await navigator.clipboard.writeText(url);
+          const sh = document.getElementById('share-hint');
+          if (sh){ sh.style.display = 'block'; setTimeout(()=> sh.style.display = 'none', 1200); }
+        }
+      } catch(e){
+        // Fallback: trotzdem kopieren
+        try {
+          await navigator.clipboard.writeText(url);
+          const sh = document.getElementById('share-hint');
+          if (sh){ sh.style.display = 'block'; setTimeout(()=> sh.style.display = 'none', 1200); }
+        } catch(err){ console.error('Share/Kopieren fehlgeschlagen', err); }
+      }
+    };
+  }
 
   // Close handlers
   const closers = modal.querySelectorAll('[data-close]');
