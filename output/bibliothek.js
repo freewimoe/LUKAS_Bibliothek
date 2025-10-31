@@ -294,6 +294,7 @@ function renderBanner(data){
   for (const r of sample){
     const img = document.createElement('img');
     img.src = r.cover_local || r.cover_online || 'placeholder.jpg';
+    img.loading = 'lazy';
     img.alt = r.title || 'Buchcover';
     img.style.cursor = 'pointer';
     img.addEventListener('click', ()=> openDetail(r));
@@ -543,7 +544,7 @@ function appendRow(body, r){
   const tr = document.createElement('tr');
   const cover = r.cover_local || r.cover_online || 'placeholder.jpg';
   tr.innerHTML = `
-    <td data-label="Cover"><img class="thumb" src="${cover}" alt="Cover"></td>
+    <td data-label="Cover"><img class="thumb" src="${cover}" alt="Cover" loading="lazy"></td>
     <td data-label="Autor">${r._author_display || r.author || ''}</td>
     <td data-label="Titel">${r.title || ''}</td>
     <td data-label="Kategorie">${r._category || 'Sonstiges'}</td>
