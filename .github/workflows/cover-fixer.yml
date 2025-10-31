@@ -23,7 +23,21 @@ jobs:
 
       - name: Run cover fixer (ISBN-only)
         run: |
-          python cover_fixer.py --csv output/lukas_bibliothek_v1.csv --limit 400 --timeout 6
+          python cover_fixer.py --csv output/lukas_bibliothek_v1.csv --limit 400 --timeout 6 --allow-online
+
+      - name: Upload cover-fixer added report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cover-fixer-added
+          path: output/cover_fixer_added.csv
+
+      - name: Upload cover-fixer skipped report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cover-fixer-skipped
+          path: output/cover_fixer_skipped.csv
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
