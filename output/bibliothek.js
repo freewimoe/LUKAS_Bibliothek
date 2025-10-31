@@ -213,6 +213,7 @@ function setupControls(data){
   const sb = document.getElementById('sortBy');
   const oc = document.getElementById('onlyCover');
   const od = document.getElementById('onlyDesc');
+  const reset = document.getElementById('resetView');
   const gbtnWrap = document.getElementById('groupButtons');
   if (search) search.addEventListener('input', ()=> applyFiltersAndRender());
   if (gb) gb.addEventListener('change', ()=> { CURRENT_GROUP = gb.value; updateHashParams({g:CURRENT_GROUP}, true); applyFiltersAndRender(); });
@@ -233,6 +234,28 @@ function setupControls(data){
       });
     }
     updateGroupButtons();
+  }
+  if (reset){
+    reset.addEventListener('click', ()=>{
+      // Reset view state
+      CURRENT_GROUP = 'none';
+      CURRENT_SORT = 'quality';
+      ONLY_COVER = false;
+      ONLY_DESC = false;
+      // Clear collapsed groups persistence
+      COLLAPSED_GROUPS.clear();
+      saveCollapsedState();
+      // Reflect into controls
+      if (gb) gb.value = 'none';
+      if (sb) sb.value = 'quality';
+      if (oc) oc.checked = false;
+      if (od) od.checked = false;
+      if (search) search.value = '';
+      updateGroupButtons();
+      // Clear hash (keep path clean)
+      updateHashParams({ g: null, s: null, oc: null, od: null, term: null, b: null }, true);
+      applyFiltersAndRender();
+    });
   }
   if (search) search.addEventListener('input', ()=> { updateHashParams({term: search.value || null}, true); applyFiltersAndRender(); });
 }

@@ -23,8 +23,19 @@
     <div id="banner"></div>
 
     <!-- Suchfeld + Steuerleiste -->
-    <input type="text" id="search" placeholder="Suche nach Autor, Titel, Signatur, Verlag …" />
     <div id="toolbar">
+      <div class="tool">
+        <input type="text" id="search" placeholder="Suche nach Autor, Titel, Signatur, Verlag …" />
+      </div>
+      <div class="tool" id="groupButtons" aria-label="Schnellauswahl Kategorien">
+        <button type="button" class="btn outline" data-group="none">Alle</button>
+        <button type="button" class="btn outline" data-group="fach">Fach</button>
+        <button type="button" class="btn outline" data-group="regal">Regal</button>
+        <button type="button" class="btn outline" data-group="author">Autor</button>
+        <button type="button" class="btn outline" data-group="kategorie">Kategorie</button>
+        <button type="button" class="btn outline" data-group="publisher">Verlag</button>
+        <button type="button" class="btn outline" data-group="status_digitalisierung">Status</button>
+      </div>
       <div class="tool">
         <label for="groupBy">Gruppe nach:</label>
         <select id="groupBy">
@@ -37,15 +48,6 @@
           <option value="status_digitalisierung">Status</option>
         </select>
       </div>
-      <div class="tool" id="groupButtons" aria-label="Schnellauswahl Kategorien">
-        <button type="button" class="btn outline" data-group="none">Alle</button>
-        <button type="button" class="btn outline" data-group="fach">Fach</button>
-        <button type="button" class="btn outline" data-group="regal">Regal</button>
-        <button type="button" class="btn outline" data-group="author">Autor</button>
-        <button type="button" class="btn outline" data-group="kategorie">Kategorie</button>
-        <button type="button" class="btn outline" data-group="publisher">Verlag</button>
-        <button type="button" class="btn outline" data-group="status_digitalisierung">Status</button>
-      </div>
       <div class="tool">
         <label for="sortBy">Sortierung:</label>
         <select id="sortBy">
@@ -56,11 +58,13 @@
           <option value="signatur">Signatur</option>
         </select>
       </div>
-      <div class="tool">
-        <label><input type="checkbox" id="onlyCover"> nur mit Cover</label>
+      <div class="tool" id="filters">
+        <span>Filter:</span>
+        <label><input type="checkbox" id="onlyCover"> mit Cover</label>
+        <label><input type="checkbox" id="onlyDesc"> mit Beschreibung</label>
       </div>
       <div class="tool">
-        <label><input type="checkbox" id="onlyDesc"> nur mit Beschreibung</label>
+        <button type="button" id="resetView" class="btn">Zurücksetzen</button>
       </div>
     </div>
 
