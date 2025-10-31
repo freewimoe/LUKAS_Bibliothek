@@ -110,6 +110,7 @@ let CURRENT_GROUP = 'none';
 let CURRENT_SORT = 'quality';
 let ONLY_COVER = false;
 let ONLY_DESC = false;
+const COLLAPSED_GROUPS = new Set();
 
 function formatAuthorDisplay(raw){
   if(!raw) return '';
@@ -149,11 +150,38 @@ function qualityScore(r){
   return s;
 }
 
+function deriveCategory(r){
+  const fach = (r.fach||'').toLowerCase();
+  const title = (r.title||'').toLowerCase();
+  const pub = (r.publisher||'').toLowerCase();
+  // 1) direkte Fach-Mappings
+  if (/(kinder|jugend|bilderbuch|erstles|märchen)/i.test(fach)) return 'Kinder/Jugend';
+  if (/(relig|theo|bibel|kirch)/i.test(fach)) return 'Religion';
+  if (/(kunst|kultur|musik|architektur|design|fotografie)/i.test(fach)) return 'Kunst & Kultur';
+  if (/(medizin|pflege|anatomie)/i.test(fach)) return 'Medizin';
+  if (/(recht|jur|wirtschaft|finanz|bwl|management)/i.test(fach)) return 'Wirtschaft & Recht';
+  if (/(schule|lernen|grammatik|deutsch|englisch|franz|mathematik|physik|biologie|chemie)/i.test(fach)) return 'Schule/Lernen';
+  if (/(lexikon|sachbuch|geschichte|technik|informatik|ratgeber)/i.test(fach)) return 'Sachbuch';
+  if (/(roman|erzählung|thriller|krimi|fantasy|novelle|drama|literatur)/i.test(fach)) return 'Belletristik';
+  // 2) Verlags-Indizien Kinder/Jugend
+  if (/(arena|ravensburger|carlsen|oetinger|thienemann|dressler|cbj|cbt|dtv junior|beltz|gelberg|usborne|fischer kjb)/i.test(pub)) return 'Kinder/Jugend';
+  // 3) Titel-Schlüsselwörter
+  if (/(hexe\s?lilli|olchis|conni|leselöwen|bibi|benjamin|wimmel|pony|abenteuer|erstles)/i.test(title)) return 'Kinder/Jugend';
+  if (/(thriller|krimi|mord|detektiv)/i.test(title)) return 'Belletristik';
+  if (/(fantasy|zauber|drachen|magie|science fiction|sci[- ]?fi)/i.test(title)) return 'Belletristik';
+  if (/(lexikon|atlas|handbuch|ratgeber|geschichte|technik|informatik|biologie|physik|chemie)/i.test(title)) return 'Sachbuch';
+  if (/(bibel|jesus|christ|kirche|theolog)/i.test(title)) return 'Religion';
+  if (/(lernen|grammatik|arbeitsheft|übung|schul|abi)/i.test(title)) return 'Schule/Lernen';
+  // 4) Fallback
+  return 'Sonstiges';
+}
+
 function setupControls(data){
   // enrich data with author display/sort helpers
   ORIG_DATA = data.map(r => ({
     ...r,
-    _author_display: formatAuthorDisplay(r.author)
+    _author_display: formatAuthorDisplay(r.author),
+    _category: deriveCategory(r)
   }));
   const search = document.getElementById('search');
   const gb = document.getElementById('groupBy');
@@ -345,25 +373,37 @@ function applyDeepLink(data){
   }
 }
 
+function renderGroupedRows(rows, groupBy, body){
+  const groups = new Map();
+  for (const r of rows){
+    const g = (groupBy === 'kategorie' ? (r._category || 'Sonstiges') : (r[groupBy] || '—')).toString();
+    if(!groups.has(g)) groups.set(g, []);
+    groups.get(g).push(r);
+  }
+  const groupNames = Array.from(groups.keys()).sort((a,b)=> a.localeCompare(b, 'de', {numeric:true, sensitivity:'base'}));
+  for (const g of groupNames){
+    const gr = document.createElement('tr');
+    gr.className = 'group-row';
+    const collapsed = COLLAPSED_GROUPS.has(`${groupBy}::${g}`);
+    const chev = collapsed ? '▸' : '▾';
+  gr.innerHTML = `<td colspan="7"><span class="chev">${chev}</span>${g} – <span style="font-weight:400">${groups.get(g).length} Titel</span></td>`;
+    gr.addEventListener('click', ()=>{
+      const key = `${groupBy}::${g}`;
+      if (COLLAPSED_GROUPS.has(key)) COLLAPSED_GROUPS.delete(key); else COLLAPSED_GROUPS.add(key);
+      renderTable(rows, groupBy);
+    });
+    body.appendChild(gr);
+    if (!collapsed){
+      for (const r of groups.get(g)) appendRow(body, r);
+    }
+  }
+}
+
 function renderTable(rows, groupBy='none'){
   const body = document.querySelector('#books tbody');
   body.innerHTML = '';
-
   if (groupBy && groupBy !== 'none'){
-    const groups = new Map();
-    for (const r of rows){
-      const g = (r[groupBy] || '—').toString();
-      if(!groups.has(g)) groups.set(g, []);
-      groups.get(g).push(r);
-    }
-    const groupNames = Array.from(groups.keys()).sort((a,b)=> a.localeCompare(b, 'de', {numeric:true, sensitivity:'base'}));
-    for (const g of groupNames){
-      const gr = document.createElement('tr');
-      gr.className = 'group-row';
-      gr.innerHTML = `<td colspan="7">${g} – <span style="font-weight:400">${groups.get(g).length} Titel</span></td>`;
-      body.appendChild(gr);
-      for (const r of groups.get(g)) appendRow(body, r);
-    }
+    renderGroupedRows(rows, groupBy, body);
   } else {
     for (const r of rows) appendRow(body, r);
   }
