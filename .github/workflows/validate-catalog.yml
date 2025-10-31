@@ -6,7 +6,8 @@ on:
     - cron: '17 3 * * 1'  # Mondays 03:17 UTC
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
 
 jobs:
   validate:
@@ -35,3 +36,29 @@ jobs:
         with:
           name: catalog-fixed
           path: output/lukas_bibliothek_v1.fixed.csv
+
+      - name: Prepare PR change (apply fixed CSV)
+        if: always()
+        run: |
+          if [ -f output/lukas_bibliothek_v1.fixed.csv ]; then
+            cp -f output/lukas_bibliothek_v1.fixed.csv output/lukas_bibliothek_v1.csv
+          fi
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "chore(validator): sichere ISBN-Ergänzungen übernehmen"
+          title: "chore(validator): sichere ISBN-Ergänzungen übernehmen"
+          body: |
+            Dieser PR übernimmt die sicheren Ergänzungen aus dem Validatorlauf (safe-apply ≥ 0.80 Titel+Autor):
+            - `output/lukas_bibliothek_v1.csv` aktualisiert
+
+            Zusätzlich wurde der Prüfbericht als Artefakt angehängt (Actions > Artifacts):
+            - `validation_report.csv`
+
+            Bitte kurz sichten und mergen.
+          branch: chore/validator-safe-apply
+          delete-branch: true
+          labels: |
+            automated
+            validator

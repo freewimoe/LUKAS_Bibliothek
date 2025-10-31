@@ -6,7 +6,8 @@ on:
     - cron: '10 2 * * 2'  # Tuesdays 02:10 UTC
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
 
 jobs:
   enrich:
@@ -29,3 +30,21 @@ jobs:
         with:
           name: enriched-csv
           path: output/lukas_bibliothek_v1.csv
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "chore(enrich): Metadaten & Beschreibungen ergänzt"
+          title: "chore(enrich): Metadaten & Beschreibungen ergänzt"
+          body: |
+            Automatischer Metadaten-Lauf:
+            - `output/lukas_bibliothek_v1.csv` wurde angereichert (Beschreibungen/Verlage, ggf. Covers online)
+
+            Ein Artefakt mit der CSV ist zusätzlich verfügbar (Actions > Artifacts).
+
+            Bitte sichten und mergen.
+          branch: chore/enrich-catalog
+          delete-branch: true
+          labels: |
+            automated
+            enrichment
