@@ -18,6 +18,11 @@ fotos/
 *.png
 *.gif
 
+# Web-Assets, die auf GitHub Pages benötigt werden (Ausnahmen erlauben)
+!output/lukas_bibliothek_v1.csv
+!output/LUKAS-FORUM_Logo-2025-10-26.png
+!output/placeholder.jpg
+
 # Output-Dateien
 output/*.csv
 output/thumbnails/
