@@ -113,6 +113,7 @@ let ONLY_COVER = false;
 let ONLY_DESC = false;
 const COLLAPSED_GROUPS = new Set();
 const STORAGE_KEY_COLLAPSE = 'lukas_bib_collapsed_groups_v1';
+let LAST_GROUP = 'none';
 
 function loadCollapsedState(){
   try {
@@ -203,6 +204,7 @@ function setupControls(data){
     _author_display: formatAuthorDisplay(r.author),
     _category: deriveCategory(r)
   }));
+  LAST_GROUP = CURRENT_GROUP;
   const search = document.getElementById('search');
   const gb = document.getElementById('groupBy');
   const sb = document.getElementById('sortBy');
@@ -263,7 +265,9 @@ function applyFiltersAndRender(){
   } else {
     rows.sort((a,b)=> String(a[key]||'').localeCompare(String(b[key]||''), 'de', {numeric:true, sensitivity:'base'}));
   }
-  renderTable(rows, CURRENT_GROUP);
+  const groupingChanged = (CURRENT_GROUP !== LAST_GROUP);
+  renderTable(rows, CURRENT_GROUP, { initialCollapse: groupingChanged });
+  LAST_GROUP = CURRENT_GROUP;
 }
 
 function updateGroupButtons(){
@@ -393,7 +397,19 @@ function applyDeepLink(data){
   }
 }
 
-function renderGroupedRows(rows, groupBy, body){
+function computeCollapsed(groupBy, groupName, size, initialCollapse){
+  const key = `${groupBy}::${groupName}`;
+  const has = COLLAPSED_GROUPS.has(key);
+  if (initialCollapse){
+    const shouldCollapse = size >= 4;
+    if (shouldCollapse && !has){ COLLAPSED_GROUPS.add(key); return true; }
+    if (!shouldCollapse && has){ COLLAPSED_GROUPS.delete(key); return false; }
+    return shouldCollapse;
+  }
+  return has;
+}
+
+function renderGroupedRows(rows, groupBy, body, initialCollapse=false){
   const groups = new Map();
   for (const r of rows){
     const g = (groupBy === 'kategorie' ? (r._category || 'Sonstiges') : (r[groupBy] || '—')).toString();
@@ -404,11 +420,12 @@ function renderGroupedRows(rows, groupBy, body){
   for (const g of groupNames){
     const gr = document.createElement('tr');
     gr.className = 'group-row';
-    const collapsed = COLLAPSED_GROUPS.has(`${groupBy}::${g}`);
+    const size = groups.get(g).length;
+    const key = `${groupBy}::${g}`;
+    const collapsed = computeCollapsed(groupBy, g, size, initialCollapse);
     const chev = collapsed ? '▸' : '▾';
   gr.innerHTML = `<td colspan="7"><span class="chev">${chev}</span>${g} – <span style="font-weight:400">${groups.get(g).length} Titel</span></td>`;
     gr.addEventListener('click', ()=>{
-      const key = `${groupBy}::${g}`;
       if (COLLAPSED_GROUPS.has(key)) COLLAPSED_GROUPS.delete(key); else COLLAPSED_GROUPS.add(key);
       saveCollapsedState();
       renderTable(rows, groupBy);
@@ -418,13 +435,16 @@ function renderGroupedRows(rows, groupBy, body){
       for (const r of groups.get(g)) appendRow(body, r);
     }
   }
+  if (initialCollapse){ saveCollapsedState(); }
 }
 
-function renderTable(rows, groupBy='none'){
+function renderTable(rows, groupBy, opts){
   const body = document.querySelector('#books tbody');
   body.innerHTML = '';
+  if (!groupBy) groupBy = 'none';
+  const initialCollapse = !!(opts?.initialCollapse);
   if (groupBy && groupBy !== 'none'){
-    renderGroupedRows(rows, groupBy, body);
+    renderGroupedRows(rows, groupBy, body, initialCollapse);
   } else {
     for (const r of rows) appendRow(body, r);
   }
