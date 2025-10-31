@@ -13,11 +13,14 @@ import os
 import re
 import sqlite3
 from typing import Optional, Tuple
+import xml.etree.ElementTree as ET
 
 import requests
 from requests.exceptions import RequestException
 
 DB_PATH = "output/lukas_bibliothek_v1.sqlite3"
+DNB_SRU_BASE = "https://services.dnb.de/sru/dnb"
+GOOGLE_API = "https://www.googleapis.com/books/v1/volumes"
 HEADERS = {"User-Agent": "LUKAS-Bibliothek/1.0 (+https://github.com/freewimoe/LUKAS_Bibliothek)"}
 TIMEOUT_DEFAULT = 8
 
@@ -128,7 +131,7 @@ def from_google(title: str, author: str, isbn13: Optional[str], isbn10: Optional
             continue
         params = {"q": f"isbn:{isbn}", "maxResults": 3, "langRestrict": "de"}
         try:
-            r = requests.get("https://www.googleapis.com/books/v1/volumes", params=params, headers=HEADERS, timeout=timeout)
+            r = requests.get(GOOGLE_API, params=params, headers=HEADERS, timeout=timeout)
             if r.status_code == 200:
                 js = r.json()
                 for item in js.get("items", [])[:3]:
@@ -142,7 +145,7 @@ def from_google(title: str, author: str, isbn13: Optional[str], isbn10: Optional
         # Fallback: without langRestrict
         params = {"q": f"isbn:{isbn}", "maxResults": 3}
         try:
-            r = requests.get("https://www.googleapis.com/books/v1/volumes", params=params, headers=HEADERS, timeout=timeout)
+            r = requests.get(GOOGLE_API, params=params, headers=HEADERS, timeout=timeout)
             if r.status_code == 200:
                 js = r.json()
                 for item in js.get("items", [])[:3]:
@@ -159,7 +162,7 @@ def from_google(title: str, author: str, isbn13: Optional[str], isbn10: Optional
         return None, None
     params = {"q": q, "maxResults": 3, "langRestrict": "de"}
     try:
-        r = requests.get("https://www.googleapis.com/books/v1/volumes", params=params, headers=HEADERS, timeout=timeout)
+        r = requests.get(GOOGLE_API, params=params, headers=HEADERS, timeout=timeout)
         if r.status_code == 200:
             js = r.json()
             for item in js.get("items", [])[:3]:
@@ -173,7 +176,7 @@ def from_google(title: str, author: str, isbn13: Optional[str], isbn10: Optional
     # Fallback without langRestrict
     params = {"q": q, "maxResults": 3}
     try:
-        r = requests.get("https://www.googleapis.com/books/v1/volumes", params=params, headers=HEADERS, timeout=timeout)
+        r = requests.get(GOOGLE_API, params=params, headers=HEADERS, timeout=timeout)
         if r.status_code == 200:
             js = r.json()
             for item in js.get("items", [])[:3]:
@@ -183,6 +186,82 @@ def from_google(title: str, author: str, isbn13: Optional[str], isbn10: Optional
                 if desc or pub:
                     return clean_text(desc), clean_text(pub)
     except Exception:
+        pass
+    return None, None
+
+
+def from_dnb(title: str, author: str, isbn13: Optional[str], isbn10: Optional[str], timeout: float) -> Tuple[Optional[str], Optional[str]]:
+    """Try Deutsche Nationalbibliothek SRU for German descriptions/publisher.
+    Strategy: query by ISBN first (dc schema), then fallback to title+author.
+    """
+    # (namespaces are inlined in tag names)
+
+    def extract_desc_pub(xml_text: str) -> Tuple[Optional[str], Optional[str]]:
+        try:
+            root = ET.fromstring(xml_text)
+        except ET.ParseError:
+            return None, None
+        # Find first record's DC fields
+        # Try multiple possible paths for description/abstract and publisher
+        desc = None
+        pub = None
+        # search all dc:description and dcterms:abstract
+        for tag in ["{http://purl.org/dc/elements/1.1/}description", "{http://purl.org/dc/terms/}abstract"]:
+            e = root.find(f".//{tag}")
+            if e is not None and (e.text or "").strip():
+                desc = (e.text or "").strip()
+                break
+        pe = root.find(".//{http://purl.org/dc/elements/1.1/}publisher")
+        if pe is not None and (pe.text or "").strip():
+            pub = (pe.text or "").strip()
+        return clean_text(desc), clean_text(pub)
+
+    # 1) ISBN query
+    for isbn in (normalize_isbn(isbn13), normalize_isbn(isbn10)):
+        if not isbn:
+            continue
+        params = {
+            "version": "1.1",
+            "operation": "searchRetrieve",
+            "recordSchema": "dc",
+            "maximumRecords": "3",
+            "query": f"isbn={isbn}",
+        }
+        try:
+            r = requests.get(DNB_SRU_BASE, params=params, headers=HEADERS, timeout=timeout)
+            if r.status_code == 200 and "<searchRetrieveResponse" in r.text:
+                d, p = extract_desc_pub(r.text)
+                if d or p:
+                    return d, p
+        except RequestException:
+            pass
+
+    # 2) Title + Author fallback
+    query_parts = []
+    t = (title or "").strip()
+    a = (author or "").strip()
+    if t:
+        # quote value; SRU supports field tit
+        query_parts.append(f'tit="{t}"')
+    if a:
+        # field per = person (author)
+        query_parts.append(f'per="{a}"')
+    if not query_parts:
+        return None, None
+    params = {
+        "version": "1.1",
+        "operation": "searchRetrieve",
+        "recordSchema": "dc",
+        "maximumRecords": "3",
+        "query": " and ".join(query_parts),
+    }
+    try:
+        r = requests.get(DNB_SRU_BASE, params=params, headers=HEADERS, timeout=timeout)
+        if r.status_code == 200 and "<searchRetrieveResponse" in r.text:
+            d, p = extract_desc_pub(r.text)
+            if d or p:
+                return d, p
+    except RequestException:
         pass
     return None, None
 
@@ -235,8 +314,10 @@ def main():
         if args.limit and processed > args.limit:
             break
 
-        # Try Open Library first
+        # Try Open Library first, then DNB (German), then Google
         d, p = from_openlibrary(title, author, isbn13, isbn10, timeout)
+        if not d and not p:
+            d, p = from_dnb(title, author, isbn13, isbn10, timeout)
         if not d and not p:
             d, p = from_google(title, author, isbn13, isbn10, timeout)
 

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LUKAS Bibliothek</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji"; padding: 2rem; }
+    a { color: #0b67c2; }
+  </style>
+</head>
+<body>
+  <p>Weiterleitung zur <a href="output/LukasBibliothek.html">LUKAS Bibliothek</a>…</p>
+  <script>
+    (function(){
+      var target = 'output/LukasBibliothek.html';
+      if (location.pathname && /index\.html?$/.test(location.pathname)){
+        // keep base path
+        var base = location.pathname.replace(/index\.html?$/,'');
+        target = base + target;
+      }
+      // use replace to avoid back-button loop
+      globalThis.location.replace(target);
+    })();
+  </script>
+</body>
+</html>

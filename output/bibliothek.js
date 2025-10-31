@@ -63,7 +63,7 @@ function init(){
     // Offline-Modus: Nutzer muss CSV per Dateiauswahl bereitstellen
   document.getElementById('offline-box').style.display = 'block';
   const tbody = document.querySelector('#books tbody');
-  tbody.innerHTML = '<tr><td colspan="7">🔒 Offline-Modus aktiv. Bitte wählen Sie oben die CSV-Datei aus.</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="8">🔒 Offline-Modus aktiv. Bitte wählen Sie oben die CSV-Datei aus.</td></tr>';
     const fileInput = document.getElementById('csvFile');
     fileInput.addEventListener('change', e => {
   const file = e.target?.files?.[0];
@@ -73,11 +73,11 @@ function init(){
         complete: (res) => {
           const all = (res.data || []).filter(r => r.title || r.author);
           const data = all.filter(keepRow);
-          setupControls(data);
           renderBanner(data);
-          applyFiltersAndRender();
+          setupControls(data);
+          applyViewStateFromHash(data);
           applyDeepLink(data);
-          globalThis.addEventListener('hashchange', ()=> applyDeepLink(data));
+          globalThis.addEventListener('hashchange', ()=> handleHashChange(data));
         },
         error: (err) => {
           console.error('CSV Parse Error', err);
@@ -93,16 +93,16 @@ function init(){
     .then(text => {
       const all = Papa.parse(text,{header:true}).data.filter(r => r.title || r.author);
       const data = all.filter(keepRow);
-      renderBanner(data);
-      setupControls(data);
-      applyFiltersAndRender();
-      applyDeepLink(data);
-  globalThis.addEventListener('hashchange', ()=> applyDeepLink(data));
+    renderBanner(data);
+    setupControls(data);
+    applyViewStateFromHash(data);
+    applyDeepLink(data);
+  globalThis.addEventListener('hashchange', ()=> { handleHashChange(data); });
     })
     .catch(err => {
       console.error('Fehler beim Laden der CSV:', err);
       const tbody = document.querySelector('#books tbody');
-      tbody.innerHTML = '<tr><td colspan="7">⚠️ Daten konnten nicht geladen werden.</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="8">⚠️ Daten konnten nicht geladen werden.</td></tr>';
     });
 }
 
@@ -212,25 +212,26 @@ function setupControls(data){
   const od = document.getElementById('onlyDesc');
   const gbtnWrap = document.getElementById('groupButtons');
   if (search) search.addEventListener('input', ()=> applyFiltersAndRender());
-  if (gb) gb.addEventListener('change', ()=> { CURRENT_GROUP = gb.value; applyFiltersAndRender(); });
+  if (gb) gb.addEventListener('change', ()=> { CURRENT_GROUP = gb.value; updateHashParams({g:CURRENT_GROUP}, true); applyFiltersAndRender(); });
   if (sb){
     sb.value = CURRENT_SORT;
-    sb.addEventListener('change', ()=> { CURRENT_SORT = sb.value; applyFiltersAndRender(); });
+    sb.addEventListener('change', ()=> { CURRENT_SORT = sb.value; updateHashParams({s:CURRENT_SORT}, true); applyFiltersAndRender(); });
   }
-  if (oc) oc.addEventListener('change', ()=> { ONLY_COVER = oc.checked; applyFiltersAndRender(); });
-  if (od) od.addEventListener('change', ()=> { ONLY_DESC = od.checked; applyFiltersAndRender(); });
+  if (oc) oc.addEventListener('change', ()=> { ONLY_COVER = oc.checked; updateHashParams({oc:ONLY_COVER?1:0}, true); applyFiltersAndRender(); });
+  if (od) od.addEventListener('change', ()=> { ONLY_DESC = od.checked; updateHashParams({od:ONLY_DESC?1:0}, true); applyFiltersAndRender(); });
   if (gbtnWrap){
     const btns = gbtnWrap.querySelectorAll('button[data-group]');
     for (const btn of btns){
       btn.addEventListener('click', ()=> {
         CURRENT_GROUP = btn.dataset.group || 'none';
         if (gb) gb.value = CURRENT_GROUP;
-        updateGroupButtons();
+        updateGroupButtons(); updateHashParams({g:CURRENT_GROUP}, true);
         applyFiltersAndRender();
       });
     }
     updateGroupButtons();
   }
+  if (search) search.addEventListener('input', ()=> { updateHashParams({term: search.value || null}, true); applyFiltersAndRender(); });
 }
 
 function applyFiltersAndRender(){
@@ -375,26 +376,111 @@ function openDetail(r){
   for (const el of closers){
     el.onclick = () => {
       modal.style.display='none';
-      location.hash='';
+      // nur den Buch-Parameter entfernen, restliche Ansicht beibehalten
+      updateHashParams({ b: null }, true);
       window.scrollTo({top: LAST_SCROLL_Y, behavior: 'auto'});
     };
   }
   modal.style.display = 'block';
-  // Deep-Link setzen
+  // Deep-Link setzen (Hash-Params mergen ohne Scroll-Jump)
   if (r.id){
     const y = LAST_SCROLL_Y;
-    location.hash = `#b=${encodeURIComponent(r.id)}`;
-    // Hash-Änderung kann Scrollposition beeinflussen: wiederherstellen
+    updateHashParams({b: String(r.id)}, true);
     setTimeout(()=> window.scrollTo({top: y, behavior: 'auto'}), 0);
   }
 }
 
 function applyDeepLink(data){
-  if (location.hash.startsWith('#b=')){
-    const id = decodeURIComponent(location.hash.slice(3));
+  const params = parseHashParams();
+  if (params.b){
+    const id = params.b;
     const found = data.find(r => String(r.id) === String(id));
     if(found) openDetail(found);
   }
+}
+
+// ---- Hash-State Handling (teilen/persistieren der Ansicht) ----
+function parseHashParams(){
+  const h = (location.hash || '').replace(/^#/, '');
+  if (!h) return {};
+  const obj = {};
+  for (const part of h.split('&')){
+    if (!part) continue;
+    const eq = part.indexOf('=');
+    if (eq === -1){ obj[decodeURIComponent(part)] = ''; continue; }
+    const k = decodeURIComponent(part.slice(0, eq));
+    const v = decodeURIComponent(part.slice(eq+1));
+    obj[k] = v;
+  }
+  return obj;
+}
+function buildHashFromParams(obj){
+  const parts = [];
+  for (const [k,v] of Object.entries(obj)){
+    if (v === undefined || v === null || v === '') continue;
+    parts.push(encodeURIComponent(k) + '=' + encodeURIComponent(String(v)));
+  }
+  return parts.join('&');
+}
+function replaceUrlWithHash(hashStr){
+  try {
+    if (hashStr){
+      history.replaceState(null, '', '#' + hashStr);
+    } else {
+      history.replaceState(null, '', location.pathname + location.search);
+    }
+  } catch {
+    location.hash = hashStr ? ('#' + hashStr) : '';
+  }
+}
+function updateHashParams(newParams, replace=false){
+  const cur = parseHashParams();
+  const merged = { ...cur, ...newParams };
+  // remove nullish
+  for (const [k,v] of Object.entries(merged)){
+    if (v === null || v === undefined || v === '') delete merged[k];
+  }
+  const newHash = buildHashFromParams(merged);
+  if (replace){
+    replaceUrlWithHash(newHash);
+  } else {
+    location.hash = newHash ? ('#' + newHash) : '';
+  }
+}
+
+function applyViewStateFromHash(data){
+  const p = parseHashParams();
+  // group
+  if (p.g){ CURRENT_GROUP = p.g; }
+  // sort
+  if (p.s){ CURRENT_SORT = p.s; }
+  // filters
+  ONLY_COVER = (p.oc === '1');
+  ONLY_DESC  = (p.od === '1');
+  // search term
+  const term = p.term || '';
+
+  // reflect into controls
+  const gb = document.getElementById('groupBy');
+  const sb = document.getElementById('sortBy');
+  const oc = document.getElementById('onlyCover');
+  const od = document.getElementById('onlyDesc');
+  const search = document.getElementById('search');
+  if (gb){ gb.value = CURRENT_GROUP; }
+  if (sb){ sb.value = CURRENT_SORT; }
+  if (oc){ oc.checked = !!ONLY_COVER; }
+  if (od){ od.checked = !!ONLY_DESC; }
+  if (search){ search.value = term; }
+
+  updateGroupButtons();
+  applyFiltersAndRender();
+}
+
+function handleHashChange(data){
+  // Anwenden der Ansicht (Gruppe/Sort/Filter/Suche)
+  applyViewStateFromHash(data);
+  // Deep-Link ggf. öffnen
+  applyDeepLink(data);
 }
 
 function computeCollapsed(groupBy, groupName, size, initialCollapse){
@@ -424,7 +510,7 @@ function renderGroupedRows(rows, groupBy, body, initialCollapse=false){
     const key = `${groupBy}::${g}`;
     const collapsed = computeCollapsed(groupBy, g, size, initialCollapse);
     const chev = collapsed ? '▸' : '▾';
-  gr.innerHTML = `<td colspan="7"><span class="chev">${chev}</span>${g} – <span style="font-weight:400">${groups.get(g).length} Titel</span></td>`;
+  gr.innerHTML = `<td colspan="8"><span class="chev">${chev}</span>${g} – <span style="font-weight:400">${groups.get(g).length} Titel</span></td>`;
     gr.addEventListener('click', ()=>{
       if (COLLAPSED_GROUPS.has(key)) COLLAPSED_GROUPS.delete(key); else COLLAPSED_GROUPS.add(key);
       saveCollapsedState();
@@ -457,6 +543,7 @@ function appendRow(body, r){
     <td data-label="Cover"><img class="thumb" src="${cover}" alt="Cover"></td>
     <td data-label="Autor">${r._author_display || r.author || ''}</td>
     <td data-label="Titel">${r.title || ''}</td>
+    <td data-label="Kategorie">${r._category || 'Sonstiges'}</td>
     <td data-label="Verlag">${r.publisher || ''}</td>
     <td data-label="Signatur">${r.signatur || ''}</td>
     <td data-label="Regal">${r.regal || ''}</td>
