@@ -215,6 +215,11 @@ footer .version {
   }
   #logo { height: 40px; }
   #search { font-size: 1rem; padding: 0.5rem; margin-top: 0.4rem; }
+  /* Toolbar: auf schmalen Screens in Zeilen umbrechen */
+  #toolbar { gap: .4rem .6rem; }
+  #toolbar .tool { flex: 1 1 100%; }
+  #groupButtons { display: flex; gap: .4rem; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+  #groupButtons .btn { padding: .3rem .5rem; font-size: .9rem; }
   table { display: block; width: 100%; overflow-x: auto; }
   th { font-size: 0.9rem; }
   td { font-size: 0.9rem; }
@@ -225,6 +230,9 @@ footer .version {
 
 /* Ultra-small (unter 480 px): Kompakte Karten-Ansicht */
 @media (max-width: 480px) {
+  /* Buttons und Labels kompakter */
+  .btn { font-size: .9rem; padding: .28rem .48rem; }
+  #toolbar .tool label { display: inline-block; margin-bottom: .2rem; }
   table, thead, tbody, th, td, tr { display: block; }
   thead { display: none; }
   tr {
