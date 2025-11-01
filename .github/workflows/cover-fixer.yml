@@ -47,24 +47,3 @@ jobs:
           labels: |
             automated
             thumbnails
-
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v6
-        with:
-          commit-message: "chore(covers): lokale Thumbnails ergänzen/aktualisieren"
-          title: "chore(covers): lokale Thumbnails ergänzen/aktualisieren"
-          body: |
-            Automatischer Lauf des Cover-Fixers:
-            - Befüllt/aktualisiert lokale Thumbnails unter `output/thumbnails/`
-            - Setzt `cover_local` im CSV für betroffene Datensätze
-
-            Berichte:
-            - `output/cover_fixer_added.csv`
-            - `output/cover_fixer_skipped.csv`
-
-            Bitte kurz prüfen und mergen.
-          branch: chore/covers-auto-fix
-          delete-branch: true
-          labels: |
-            automated
-            covers
