@@ -21,9 +21,9 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Run enrichment
+      - name: Run enrichment (all)
         run: |
-          python fetch_metadata.py --limit 1200 --timeout 6
+          python fetch_metadata.py --limit 0 --timeout 8 --max-chars 800
 
       - name: Upload enriched CSV
         uses: actions/upload-artifact@v4
