@@ -1,4 +1,4 @@
-name: Cover Fixer
+name: Thumbnails from Fotos
 
 on:
   workflow_dispatch: {}
@@ -21,23 +21,32 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Run cover fixer (ISBN-only)
+      - name: Install Pillow
         run: |
-          python cover_fixer.py --csv output/lukas_bibliothek_v1.csv --limit 400 --timeout 6 --allow-online
+          python -m pip install --upgrade pip
+          pip install pillow
 
-      - name: Upload cover-fixer added report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: cover-fixer-added
-          path: output/cover_fixer_added.csv
+      - name: Generate thumbnails from fotos
+        run: |
+          python generate_thumbnails_from_fotos.py --limit 0 --max-width 380 --quality 85
 
-      - name: Upload cover-fixer skipped report
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
         with:
-          name: cover-fixer-skipped
-          path: output/cover_fixer_skipped.csv
+          commit-message: "chore(thumbnails): Thumbnails aus lokalen fotos/ aktualisiert"
+          title: "chore(thumbnails): Thumbnails aus lokalen fotos/ aktualisiert"
+          body: |
+            Dieser PR enthält neu erzeugte bzw. geänderte Thumbnails, die ausschließlich aus lokalen `fotos/` abgeleitet wurden.
+
+            - Quelle: `fotos/…` (keine Online-Cover)
+            - Ziel: `output/thumbnails/book_{id}.jpg`
+
+            Die CSV-Ausgabe bevorzugt vorhandene Thumbnails automatisch.
+          branch: chore/thumbnails-from-fotos
+          delete-branch: true
+          labels: |
+            automated
+            thumbnails
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6

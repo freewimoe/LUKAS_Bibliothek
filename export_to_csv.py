@@ -4,6 +4,7 @@ Exportiert die SQLite-Datenbank in eine CSV-Datei für die Webseite
 
 import sqlite3
 import csv
+import os
 
 DB_PATH = "output/lukas_bibliothek_v1.sqlite3"
 CSV_PATH = "output/lukas_bibliothek_v1.csv"
@@ -49,6 +50,19 @@ ORDER BY COALESCE(c.signatur, ''), a.name, b.title
 c.execute(query)
 rows = c.fetchall()
 
+# Preferiere vorhandene Thumbnails (aus fotos/ abgeleitet) für Web
+fixed_rows = []
+for row in rows:
+    # Spalten: id(0), cover_local(8)
+    book_id = row[0]
+    thumb_rel = f"thumbnails/book_{book_id}.jpg"
+    thumb_abs = os.path.join("output", thumb_rel)
+    if os.path.isfile(thumb_abs):
+        row = list(row)
+        row[8] = thumb_rel
+        row = tuple(row)
+    fixed_rows.append(row)
+
 # Schreibe CSV
 with open(CSV_PATH, 'w', newline='', encoding='utf-8') as f:
     writer = csv.writer(f)
@@ -60,7 +74,7 @@ with open(CSV_PATH, 'w', newline='', encoding='utf-8') as f:
     ])
     
     # Daten
-    for row in rows:
+    for row in fixed_rows:
         writer.writerow(row)
 
 conn.close()
