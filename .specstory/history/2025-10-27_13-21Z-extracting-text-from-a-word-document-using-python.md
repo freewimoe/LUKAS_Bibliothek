@@ -5053,7 +5053,7 @@ Wenn Du möchtest, stelle ich den Cover‑Fixer im CI von “ISBN‑only” auf 
 
 ---
 
-_**User (2025-10-31 17:45Z)**_
+_**User (2025-10-31 22:10Z)**_
 
 ja
 
@@ -5075,7 +5075,44 @@ I’ll outline a clear plan for our progress section. First, I’ll add a new it
 ```
 
 ```
+Alles klar — ich habe den Cover‑Fixer im CI auf “mit Online‑Fallback” umgestellt und die Reports als Artefakte angehängt.
 
+## Änderungen
+
+- Workflow `cover-fixer.yml`
+  - Ausführung jetzt mit: `--allow-online` (nutzt vorhandenes `cover_online`, wenn Open Library kein Bild liefert).
+  - Zwei Artefakte werden nach jedem Lauf hochgeladen:
+    - cover-fixer-added (output/cover_fixer_added.csv)
+    - cover-fixer-skipped (output/cover_fixer_skipped.csv)
+
+- Commit/Push ist erfolgt; der Workflow ist aktiv für den wöchentlichen Lauf und “Run workflow” per Actions.
+
+## Ergebnis und was du erwarten kannst
+
+- Bei jedem Lauf erstellt der Workflow automatisch einen PR mit neuen lokalen Thumbnails und der aktualisierten CSV.
+- Die beiden CSV‑Berichte findest du in GitHub → Actions → zum Lauf → Artifacts.
+
+Möchtest du zusätzlich die Schwellen/Parameter anpassen (z. B. höheres Limit, längerer Timeout), oder soll ich die PR‑Titel/Beschreibung ins Deutsche noch klarer formulieren?
+
+---
+
+_**User (2025-10-31 22:11Z)**_
+
+zunächst brauchen wir mehr kurzbeschreibungen von den titeln
+
+---
+
+_**Assistant (copilot/gpt-5)**_
+
+**Planning description enhancement**
+
+The user is requesting more short descriptions for titles, focusing on improving description coverage. We already have a script called fetch_metadata.py and a workflow that updates weekly. It sounds like we need to take immediate action to enhance descriptions, which may involve adjusting the enrichment script and possibly integrating new sources like Wikipedia or MediaWiki. First, I need to check if fetch_metadata.py is accessible, and then enhance it to include these new sources while considering licensing issues.**Exploring description sources**
+
+To enhance short descriptions, I’m considering safe sources like Open Library, Google Books, and DNB data, and avoiding APIs that require secrets. Maybe German Amazon could work too, but I think it’s best to exclude it. We might also generate blurbs from existing metadata. Using Google Books search based on title and author could help when ISBNs are missing; I could implement a new script or expand fetch_metadata.py to manage descriptions. First, I’ll need to check the current fetch_metadata.py file.**Checking fetch_metadata.py**
+
+Okay, so fetch_metadata.py already has DNB SRU, Google fallback, and Open Library by ISBN/search. The user wants more short descriptions, so I need to figure out how to accommodate that.
+
+We could increase the limit when running it locally. The user used --limit 1000 before, but maybe we can push it higher, like 2000 or even have no limit. I should verify how the dataset size looks since it has around 1300 entries in the CSV. I want to check if fetch_metadata updates the database and triggers the export correctly. Let's look into fetch_metadata.py.
 
 ---
 

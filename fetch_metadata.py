@@ -5,7 +5,7 @@ Writes results into books.description and books.publisher_id (creating publisher
 Re-exports CSV afterwards.
 
 Usage:
-  python fetch_metadata.py --limit 200 --timeout 6
+    python fetch_metadata.py --limit 200 --timeout 6 [--max-chars 800]
 """
 
 import argparse
@@ -23,6 +23,7 @@ DNB_SRU_BASE = "https://services.dnb.de/sru/dnb"
 GOOGLE_API = "https://www.googleapis.com/books/v1/volumes"
 HEADERS = {"User-Agent": "LUKAS-Bibliothek/1.0 (+https://github.com/freewimoe/LUKAS_Bibliothek)"}
 TIMEOUT_DEFAULT = 8
+MAX_CHARS_DEFAULT = 800
 
 def clean_text(s: Optional[str]) -> Optional[str]:
     if not s:
@@ -75,7 +76,7 @@ def ol_work_or_edition_description(key: str, timeout: float) -> Tuple[Optional[s
         r = requests.get(url, headers=HEADERS, timeout=timeout)
         if r.status_code == 200:
             js = r.json()
-            desc = pick_first_str(js.get("description"))
+            desc = pick_first_str(js.get("description")) or pick_first_str(js.get("notes"))
             pub = pick_first_str(js.get("publishers"))
             return clean_text(desc), clean_text(pub)
     except Exception:
@@ -124,6 +125,17 @@ def from_openlibrary(title: str, author: str, isbn13: Optional[str], isbn10: Opt
     return None, None
 
 
+def _google_desc_pub(item: dict) -> Tuple[Optional[str], Optional[str]]:
+    vi = item.get("volumeInfo", {}) if isinstance(item, dict) else {}
+    desc = pick_first_str(vi.get("description"))
+    pub = pick_first_str(vi.get("publisher"))
+    if not desc:
+        # Fallback: searchInfo.textSnippet (kann HTML/Tags enthalten)
+        si = item.get("searchInfo", {}) if isinstance(item, dict) else {}
+        desc = pick_first_str(si.get("textSnippet"))
+    return clean_text(desc), clean_text(pub)
+
+
 def from_google(title: str, author: str, isbn13: Optional[str], isbn10: Optional[str], timeout: float) -> Tuple[Optional[str], Optional[str]]:
     # prefer ISBN query
     for isbn in (normalize_isbn(isbn13), normalize_isbn(isbn10)):
@@ -135,11 +147,9 @@ def from_google(title: str, author: str, isbn13: Optional[str], isbn10: Optional
             if r.status_code == 200:
                 js = r.json()
                 for item in js.get("items", [])[:3]:
-                    vi = item.get("volumeInfo", {})
-                    desc = pick_first_str(vi.get("description"))
-                    pub = pick_first_str(vi.get("publisher"))
-                    if desc or pub:
-                        return clean_text(desc), clean_text(pub)
+                    d, p = _google_desc_pub(item)
+                    if d or p:
+                        return d, p
         except Exception:
             pass
         # Fallback: without langRestrict
@@ -149,11 +159,9 @@ def from_google(title: str, author: str, isbn13: Optional[str], isbn10: Optional
             if r.status_code == 200:
                 js = r.json()
                 for item in js.get("items", [])[:3]:
-                    vi = item.get("volumeInfo", {})
-                    desc = pick_first_str(vi.get("description"))
-                    pub = pick_first_str(vi.get("publisher"))
-                    if desc or pub:
-                        return clean_text(desc), clean_text(pub)
+                    d, p = _google_desc_pub(item)
+                    if d or p:
+                        return d, p
         except Exception:
             pass
     # fallback title+author
@@ -166,11 +174,9 @@ def from_google(title: str, author: str, isbn13: Optional[str], isbn10: Optional
         if r.status_code == 200:
             js = r.json()
             for item in js.get("items", [])[:3]:
-                vi = item.get("volumeInfo", {})
-                desc = pick_first_str(vi.get("description"))
-                pub = pick_first_str(vi.get("publisher"))
-                if desc or pub:
-                    return clean_text(desc), clean_text(pub)
+                d, p = _google_desc_pub(item)
+                if d or p:
+                    return d, p
     except Exception:
         pass
     # Fallback without langRestrict
@@ -180,11 +186,9 @@ def from_google(title: str, author: str, isbn13: Optional[str], isbn10: Optional
         if r.status_code == 200:
             js = r.json()
             for item in js.get("items", [])[:3]:
-                vi = item.get("volumeInfo", {})
-                desc = pick_first_str(vi.get("description"))
-                pub = pick_first_str(vi.get("publisher"))
-                if desc or pub:
-                    return clean_text(desc), clean_text(pub)
+                d, p = _google_desc_pub(item)
+                if d or p:
+                    return d, p
     except Exception:
         pass
     return None, None
@@ -281,6 +285,7 @@ def main():
     parser = argparse.ArgumentParser(description="Fetch descriptions and publisher info")
     parser.add_argument("--limit", type=int, default=200, help="Max number of books to enrich (0 = all)")
     parser.add_argument("--timeout", type=float, default=TIMEOUT_DEFAULT, help="HTTP timeout per request")
+    parser.add_argument("--max-chars", type=int, default=MAX_CHARS_DEFAULT, help="Truncate descriptions to this many characters (0 = no limit)")
     args = parser.parse_args()
 
     timeout = args.timeout if args.timeout and args.timeout > 0 else TIMEOUT_DEFAULT
@@ -326,6 +331,14 @@ def main():
 
         if need_desc and d:
             set_desc = d
+            # Optional Kürzen auf Kurzbeschreibung
+            if args.max_chars and args.max_chars > 0 and len(set_desc) > args.max_chars:
+                # Schneiden an Wortgrenze
+                cut = set_desc[: args.max_chars + 1]
+                # bis letztes Leerzeichen
+                if ' ' in cut:
+                    cut = cut[: cut.rfind(' ')].rstrip()
+                set_desc = cut + " …"
         if need_pub and p:
             set_pub_id = upsert_publisher(conn, p)
 
