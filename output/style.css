@@ -84,6 +84,15 @@ h1 {
 .btn.outline:hover { background: #f2f5fb; }
 .btn.active { background: #1f4b9d; color: #fff; border-color: transparent; }
 
+/* Collapse controls distinct styling */
+#collapseButtons .btn {
+  background: #eef2fb;
+  border: 1px solid #9cb0e3;
+  color: #1f3d85;
+}
+#collapseButtons .btn:hover { background: #e4ebfb; }
+#collapseButtons .btn.active { background: #1f4b9d; color: #fff; border-color: #1f4b9d; }
+
 /* --- Tabelle --- */
 table {
   width: 100%;

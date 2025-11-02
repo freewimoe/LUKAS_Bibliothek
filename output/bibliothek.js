@@ -243,6 +243,12 @@ function setupControls(data){
     const btnCollapseAll = document.getElementById('collapseAll');
     const btnExpandAll = document.getElementById('expandAll');
     const btnDefault = document.getElementById('collapseDefault');
+    const collapseBtns = [btnCollapseAll, btnExpandAll, btnDefault].filter(Boolean);
+
+    const setActiveCollapse = (activeBtn)=>{
+      for (const b of collapseBtns){ if (!b) continue; b.classList.remove('active'); }
+      if (activeBtn) activeBtn.classList.add('active');
+    };
 
     const computeGroupNames = ()=>{
       const groupBy = CURRENT_GROUP || 'none';
@@ -263,6 +269,7 @@ function setupControls(data){
         for (const name of names){ COLLAPSED_GROUPS.add(`${groupBy}::${name}`); }
         saveCollapsedState();
         renderTable(ORIG_DATA, groupBy);
+        setActiveCollapse(btnCollapseAll);
       });
     }
     if (btnExpandAll){
@@ -273,6 +280,7 @@ function setupControls(data){
         for (const name of names){ COLLAPSED_GROUPS.delete(`${groupBy}::${name}`); }
         saveCollapsedState();
         renderTable(ORIG_DATA, groupBy);
+        setActiveCollapse(btnExpandAll);
       });
     }
     if (btnDefault){
@@ -284,6 +292,7 @@ function setupControls(data){
         // initialCollapse=true lässt computeCollapsed mit Größe>=4 tätig werden
         renderTable(ORIG_DATA, groupBy, { initialCollapse: true });
         saveCollapsedState();
+        setActiveCollapse(btnDefault);
       });
     }
   }
