@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Neue Bücher aus Fotos – Review & Auswahl</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;padding:16px;background:#fafafa;color:#222}
+    header{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+    h1{font-size:20px;margin:0 12px 0 0}
+    #stats{opacity:0.8}
+    .toolbar{display:flex;gap:8px;flex-wrap:wrap}
+    input[type="search"]{padding:8px 10px;border:1px solid #ccc;border-radius:6px;min-width:260px}
+    button{padding:8px 12px;border:1px solid #888;border-radius:6px;background:#fff;cursor:pointer}
+    button.primary{background:#2563eb;color:#fff;border-color:#2563eb}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-top:12px}
+    .card{background:#fff;border:1px solid #ddd;border-radius:8px;overflow:hidden;display:flex;flex-direction:column}
+    .thumb{aspect-ratio:3/5;object-fit:cover;width:100%;background:#eee}
+    .meta{padding:10px;display:flex;flex-direction:column;gap:6px}
+    .meta small{opacity:0.7}
+    .row{display:flex;align-items:center;gap:8px}
+    .nowrap{white-space:nowrap}
+    .muted{opacity:0.7}
+    .hidden{display:none}
+    footer{margin-top:16px;opacity:0.8}
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Neue Bücher aus Fotos</h1>
+    <div id="stats" class="muted">Lade…</div>
+  </header>
+  <div class="toolbar">
+    <label for="mode">Quelle:</label>
+    <select id="mode">
+      <option value="enhanced">Angereicherte Kandidaten (mit Vorschlägen)</option>
+      <option value="new">Nur neue (Import-Vorschläge)</option>
+    </select>
+    <input id="q" type="search" placeholder="Suche (Titel/Vorschlag/Fotos)" />
+    <input id="csvFile" type="file" accept=".csv" class="hidden" />
+    <button id="pickCsvBtn" class="hidden">CSV wählen…</button>
+    <button id="selAll">Alle auswählen</button>
+    <button id="selNone">Auswahl leeren</button>
+    <button id="downloadSel" class="primary">Auswahl als CSV herunterladen</button>
+    <span class="muted" id="dlHint"></span>
+  </div>
+
+  <div id="grid" class="grid"></div>
+
+  <footer class="muted">
+    <p>
+      Hinweise: Die Bilder sind Segment-Crops aus <code>fotos/</code>. Diese Seite liest <code>new_books_from_fotos.csv</code> und zeigt nur "new"-Kandidaten.
+      Die Export-CSV hat denselben Header wie die Originaldatei und kann mit <code>import_segments_to_db.py --csv new_books_selection.csv --limit N</code> verarbeitet werden.
+    </p>
+  </footer>
+
+  <script>
+  const PATHS = {
+      enhanced: 'fotos_candidates_matched.csv',
+      new: 'new_books_from_fotos.csv'
+    };
+    let MODE = 'enhanced';
+    let ROWS = [];
+    let FILTERED = [];
+
+    const $ = sel => document.querySelector(sel);
+    const $grid = $('#grid');
+    const $q = $('#q');
+    const $stats = $('#stats');
+
+    function cleanSrc(p){
+      if(!p) return '';
+      // CSV enthält Pfade wie "output/fotos_segments/…"; relativ zur HTML-Datei genügt "fotos_segments/…"
+      return String(p).replace(/^output\//,'');
+    }
+
+    function render(){
+      const q = ($q.value||'').toLowerCase().trim();
+      FILTERED = ROWS.filter(r => {
+        if(!q) return true;
+        const hay = [
+          r.title||r.ocr_title_hint||'',
+          r.matched_title||'',
+          r.matched_author||'',
+          r.matched_publisher||'',
+          r.source_photo||'',
+          r.photo_base||''
+        ].join(' ').toLowerCase();
+        return hay.includes(q);
+      });
+      $stats.textContent = `${FILTERED.length} von ${ROWS.length} Kandidaten (${MODE==='enhanced' ? 'angereichert' : 'nur neu'})`;
+      const frag = document.createDocumentFragment();
+      for(const r of FILTERED){
+        const card = document.createElement('div');
+        card.className = 'card';
+        const img = document.createElement('img');
+        img.className = 'thumb';
+        img.loading = 'lazy';
+        img.src = cleanSrc(r.cover_local || r.crop_path);
+        img.alt = r.title || r.ocr_title_hint || 'Segment';
+        img.onerror = () => { img.classList.add('hidden'); };
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        const row1 = document.createElement('div');
+        row1.className = 'row';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.className = 'pick';
+        cb.dataset.id = `${r.photo_base||r.source_file||''}#${r.segment_index||''}`;
+        cb.checked = !!r._checked;
+        const title = document.createElement('div');
+        title.textContent = r.title || r.ocr_title_hint || '(ohne Titelhinweis)';
+        row1.appendChild(cb);
+        row1.appendChild(title);
+        const row2 = document.createElement('div');
+        row2.className = 'row muted';
+        const score = r.match_score ? ` · Score: ${Number(r.match_score).toFixed(3)}` : '';
+        row2.innerHTML = `<small>Foto: <code>${r.source_photo||r.source_path||''}</code> · Segment: <code>${r.segment_index||''}</code>${score}</small>`;
+        const suggest = document.createElement('div');
+        if (r.matched_title || r.matched_author || r.matched_publisher){
+          suggest.className = 'row muted';
+          suggest.innerHTML = `<small>Vorschlag: <b>${r.matched_title||''}</b> — ${r.matched_author||''} (${r.matched_publisher||''}) ${r.reason?`· ${r.reason}`:''}</small>`;
+        }
+        meta.appendChild(row1);
+        meta.appendChild(row2);
+        if(suggest) meta.appendChild(suggest);
+        card.appendChild(img);
+        card.appendChild(meta);
+        frag.appendChild(card);
+      }
+      $grid.replaceChildren(frag);
+    }
+
+    function toCsvNew(rows){
+      const header = ['title','author','cover_local','source_photo','photo_base','segment_index'];
+      const data = [header.join(',')].concat(rows.map(r => header.map(h => {
+        const val = (r[h] ?? '').toString();
+        // CSV-escape
+        if(/[,"\n]/.test(val)) return '"' + val.replace(/"/g,'""') + '"';
+        return val;
+      }).join(',')));
+      return data.join('\n');
+    }
+
+    function toCsvExisting(rows){
+      const header = ['source_photo','segment_index','matched_book_id','match_score'];
+      const data = [header.join(',')].concat(rows.map(r => header.map(h => {
+        const val = (r[h] ?? r[h.replace('source_photo','source_path')] ?? '').toString();
+        if(/[,"\n]/.test(val)) return '"' + val.replace(/"/g,'""') + '"';
+        return val;
+      }).join(',')));
+      return data.join('\n');
+    }
+
+    function download(filename, text){
+      const blob = new Blob([text], {type:'text/csv;charset=utf-8'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(url);
+      a.remove();
+    }
+
+    function selectedRows(){
+      const ids = new Set(Array.from(document.querySelectorAll('.pick:checked')).map(el => el.dataset.id));
+      return ROWS.filter(r => ids.has(`${r.photo_base}#${r.segment_index}`));
+    }
+
+    // events
+    $('#selAll').addEventListener('click', () => { for(const r of FILTERED){ r._checked = true; } render(); });
+    $('#selNone').addEventListener('click', () => { for(const r of ROWS){ r._checked = false; } render(); });
+    $('#downloadSel').addEventListener('click', () => {
+      const sel = selectedRows();
+      if(!sel.length){ alert('Keine Auswahl.'); return; }
+      if(MODE==='new'){
+        download('new_books_selection.csv', toCsvNew(sel));
+      } else {
+        // bei angereicherten Kandidaten: zwei Wege – wenn matched_book_id vorhanden, exportiere Bestätigungen
+        const haveMatches = sel.filter(r => (r.matched_book_id||'').length);
+        if(!haveMatches.length){
+          alert('In der Auswahl sind keine Vorschläge mit matched_book_id.'); return;
+        }
+        download('existing_matches_selection.csv', toCsvExisting(haveMatches));
+      }
+    });
+    $q.addEventListener('input', render);
+    $('#mode').addEventListener('change', () => { MODE = $('#mode').value; loadCsv(); updateDlHint(); });
+    function updateDlHint(){
+      $('#dlHint').innerHTML = MODE==='new'
+        ? 'Export: <b>new_books_selection.csv</b> – nutzbar mit <code>import_segments_to_db.py --csv new_books_selection.csv --limit N</code>'
+        : 'Export: <b>existing_matches_selection.csv</b> – enthält bestätigte Zuordnungen (für spätere Tools)';
+    }
+
+    function loadFromText(text){
+      const parsed = Papa.parse(text, {header:true}).data;
+      if(MODE==='new'){
+        ROWS = parsed.filter(r => (r && (r.title || r.cover_local)));
+        if(parsed[0] && 'status' in parsed[0]){
+          ROWS = parsed.filter(r => (r.status||'').toLowerCase()==='new');
+        }
+      } else {
+        // enhanced: alle Kandidaten anzeigen (mit Vorschlägen)
+        ROWS = parsed.filter(r => (r && (r.crop_path || r.cover_local)));
+      }
+      for(const r of ROWS){ r._checked = false; }
+      $stats.textContent = `${ROWS.length} Kandidaten geladen (${MODE})`;
+      render();
+    }
+
+    function enableOfflinePicker(){
+      const fileInput = $('#csvFile');
+      const btn = $('#pickCsvBtn');
+      fileInput.classList.remove('hidden');
+      btn.classList.remove('hidden');
+      btn.addEventListener('click', ()=> fileInput.click());
+      fileInput.addEventListener('change', (e)=>{
+        const file = e.target?.files?.[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = () => loadFromText(String(reader.result||''));
+        reader.onerror = () => { $stats.textContent = 'Fehler beim Lesen der Datei.'; };
+        reader.readAsText(file, 'utf-8');
+      });
+      $stats.textContent = 'Datei-Modus: Bitte CSV wählen (fotos_candidates_matched.csv oder new_books_from_fotos.csv)';
+    }
+
+    // load CSV (HTTP) oder Offline-Datei (file://)
+    function loadCsv(){
+      const CSV = PATHS[MODE];
+      if (location.protocol === 'file:'){
+        enableOfflinePicker();
+      } else {
+        fetch(CSV)
+          .then(r => { if(!r.ok) throw new Error('CSV nicht gefunden: '+CSV); return r.text(); })
+          .then(text => loadFromText(text))
+          .catch(err => {
+            if(MODE==='enhanced'){
+              // Fallback auf "new"
+              MODE='new';
+              $('#mode').value='new';
+              loadCsv();
+            } else {
+              $stats.textContent = 'Fehler beim Laden: '+err.message;
+              console.error(err);
+            }
+          });
+      }
+    }
+    updateDlHint();
+    loadCsv();
+  </script>
+</body>
+</html>

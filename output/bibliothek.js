@@ -218,6 +218,7 @@ function setupControls(data){
   const od = document.getElementById('onlyDesc');
   const reset = document.getElementById('resetView');
   const gbtnWrap = document.getElementById('groupButtons');
+  const collapseWrap = document.getElementById('collapseButtons');
   if (search) search.addEventListener('input', ()=> applyFiltersAndRender());
   if (gb) gb.addEventListener('change', ()=> { CURRENT_GROUP = gb.value; updateHashParams({g:CURRENT_GROUP}, true); applyFiltersAndRender(); });
   if (sb){
@@ -237,6 +238,54 @@ function setupControls(data){
       });
     }
     updateGroupButtons();
+  }
+  if (collapseWrap){
+    const btnCollapseAll = document.getElementById('collapseAll');
+    const btnExpandAll = document.getElementById('expandAll');
+    const btnDefault = document.getElementById('collapseDefault');
+
+    const computeGroupNames = ()=>{
+      const groupBy = CURRENT_GROUP || 'none';
+      const groups = new Set();
+      for (const r of ORIG_DATA){
+        const g = (groupBy === 'kategorie' ? (r._category || 'Sonstiges') : (r[groupBy] || '—')).toString();
+        groups.add(g);
+      }
+      return Array.from(groups.values());
+    };
+
+    if (btnCollapseAll){
+      btnCollapseAll.addEventListener('click', ()=>{
+        const groupBy = CURRENT_GROUP || 'none';
+        if (groupBy === 'none') return; // nichts zu kollabieren
+        const names = computeGroupNames();
+        COLLAPSED_GROUPS.clear();
+        for (const name of names){ COLLAPSED_GROUPS.add(`${groupBy}::${name}`); }
+        saveCollapsedState();
+        renderTable(ORIG_DATA, groupBy);
+      });
+    }
+    if (btnExpandAll){
+      btnExpandAll.addEventListener('click', ()=>{
+        const groupBy = CURRENT_GROUP || 'none';
+        if (groupBy === 'none') return;
+        const names = computeGroupNames();
+        for (const name of names){ COLLAPSED_GROUPS.delete(`${groupBy}::${name}`); }
+        saveCollapsedState();
+        renderTable(ORIG_DATA, groupBy);
+      });
+    }
+    if (btnDefault){
+      btnDefault.addEventListener('click', ()=>{
+        const groupBy = CURRENT_GROUP || 'none';
+        if (groupBy === 'none'){ renderTable(ORIG_DATA, groupBy); return; }
+        // Standard: große Gruppen (>=4) einklappen, andere offen
+        COLLAPSED_GROUPS.clear();
+        // initialCollapse=true lässt computeCollapsed mit Größe>=4 tätig werden
+        renderTable(ORIG_DATA, groupBy, { initialCollapse: true });
+        saveCollapsedState();
+      });
+    }
   }
   if (reset){
     reset.addEventListener('click', ()=>{
@@ -608,8 +657,8 @@ function appendRow(body, r){
     <td data-label="Cover"><img class="thumb" src="${cover}" alt="Cover" loading="lazy"></td>
     <td data-label="Autor">${r._author_display || r.author || ''}</td>
     <td data-label="Titel">${r.title || ''}</td>
-    <td data-label="Kategorie">${r._category || 'Sonstiges'}</td>
     <td data-label="Verlag">${r.publisher || ''}</td>
+    <td data-label="Kategorie">${r._category || 'Sonstiges'}</td>
     <td data-label="Signatur">${r.signatur || ''}</td>
     <td data-label="Regal">${r.regal || ''}</td>
     <td data-label="Status">${r.status_digitalisierung || ''}</td>

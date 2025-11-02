@@ -54,26 +54,108 @@ def list_images(root: str) -> List[str]:
 
 
 def ocr_text(img: Image.Image, langs: str = "deu+eng") -> Tuple[str, str]:
+    """OCR mit Robustheit für Buchrücken:
+    - versucht mehrere Rotationen (0/90/270/180)
+    - probiert mehrere PSM-Modi (6/7/11)
+    - extrahiert eine bessere Titel-Heuristik aus dem Text
+    """
     try:
         import pytesseract
+        import re
     except Exception:
         return "", ""
     try:
-        # sanfte Vorverarbeitung
-        g = ImageOps.grayscale(img)
-        g = ImageOps.autocontrast(g)
-        text = pytesseract.image_to_string(g, lang=langs)
-        text = " ".join(text.split())
-        words = text.split()
-        best = ""
-        for span in range(6, 1, -1):
-            for i in range(0, max(0, len(words) - span + 1)):
-                cand = " ".join(words[i:i+span])
-                if len(cand) > len(best):
-                    best = cand
-            if best:
-                break
-        return text, best
+        # Optional: respektiere vordefinierten Pfad (Windows-Installationen)
+        cmd = os.environ.get("TESSERACT_CMD")
+        if cmd:
+            try:
+                pytesseract.pytesseract.tesseract_cmd = cmd
+            except Exception:
+                pass
+        # Optional: TESSDATA_PREFIX für Sprachmodelle
+        tdp = os.environ.get("TESSDATA_PREFIX")
+        if tdp and os.path.isdir(tdp):
+            os.environ["TESSDATA_PREFIX"] = tdp
+
+        # Vorverarbeitung (Graustufen + Autokontrast)
+        base = ImageOps.grayscale(img)
+        base = ImageOps.autocontrast(base)
+
+        rotations = [0, 90, 270, 180]
+        psms = ["6", "7", "11"]
+
+        def run_ocr(im: Image.Image) -> str:
+            best_text = ""
+            for psm in psms:
+                try:
+                    txt = pytesseract.image_to_string(im, lang=langs, config=f"--oem 3 --psm {psm}")
+                except Exception:
+                    txt = ""
+                # Normalisieren
+                txt = " ".join((txt or "").split())
+                if len(txt) > len(best_text):
+                    best_text = txt
+            return best_text
+
+        # Beste Rotation wählen
+        texts: List[Tuple[str, int]] = []
+        for rot in rotations:
+            if rot == 0:
+                im = base
+            else:
+                im = base.rotate(rot, expand=True)
+            t = run_ocr(im)
+            texts.append((t, len(re.sub(r"[^A-Za-zÄÖÜäöüß0-9 ]+", "", t))))
+        texts.sort(key=lambda x: x[1], reverse=True)
+        text = texts[0][0] if texts else ""
+
+        # Titel-Heuristik: filtere Stoppwörter, bevorzuge Groß-/Titlecase-Wörter
+        def extract_title_hint(s: str) -> str:
+            if not s:
+                return ""
+            s = s.replace("|", " ").replace("/", " ").replace("\\", " ")
+            tokens = [tok for tok in re.split(r"\s+", s) if tok]
+            # einfache Stoppliste (de)
+            stops = set("der die das und ein eine einer einem einen des dem den zu mit von für im in am an oder auf als aus bei nicht ist sind dann dort hier sowie auch wie vom zur zum ums ins".split())
+            cleaned = []
+            for t in tokens:
+                t2 = re.sub(r"^[^A-Za-zÄÖÜäöüß0-9]+|[^A-Za-zÄÖÜäöüß0-9]+$", "", t)
+                if len(t2) < 2:
+                    continue
+                if t2.lower() in stops:
+                    continue
+                cleaned.append(t2)
+            if not cleaned:
+                return ""
+            # Scoring von Sequenzen (2..6 Tokens):
+            def token_score(tok: str) -> int:
+                sc = 1
+                if tok.isupper() or (tok[:1].isupper() and tok[1:].islower()):
+                    sc += 1
+                if len(tok) >= 6:
+                    sc += 1
+                return sc
+
+            best_seq = ""
+            best_seq_score = 0
+            n = len(cleaned)
+            for span in range(6, 1, -1):
+                for i in range(0, max(0, n - span + 1)):
+                    window = cleaned[i:i+span]
+                    score = sum(token_score(t) for t in window) + span
+                    cand = " ".join(window)
+                    if score > best_seq_score:
+                        best_seq_score = score
+                        best_seq = cand
+                if best_seq:
+                    break
+            # Fallback: Top-5 Tokens
+            if not best_seq:
+                best_seq = " ".join(cleaned[:5])
+            return best_seq
+
+        hint = extract_title_hint(text)
+        return text, hint
     except Exception:
         return "", ""
 
@@ -241,6 +323,8 @@ def main() -> int:
     ap.add_argument("--threshold", type=int, default=180, help="Schwelle für dunkle Pixel (0-255)")
     ap.add_argument("--margin", type=int, default=6, help="Linker/Rechter Rand in px, die ignoriert werden")
     ap.add_argument("--ocr", action="store_true", help="OCR (pytesseract) aktivieren, falls vorhanden")
+    ap.add_argument("--tesseract", default="", help="Pfad zu tesseract.exe (Windows). Beispiel: C:\\Program Files\\Tesseract-OCR\\tesseract.exe")
+    ap.add_argument("--tessdata", default="", help="Pfad zum tessdata-Ordner (optional)")
     ap.add_argument("--match", action="store_true", help="Mit Katalog-Titeln abgleichen (Fuzzy)")
     ap.add_argument("--match-threshold", type=float, default=0.82, help="Match-Schwelle 0..1 für 'existing'")
     ap.add_argument("--catalog", default=CATALOG_CSV, help="Pfad zur Katalog-CSV")
@@ -251,6 +335,32 @@ def main() -> int:
         return 2
 
     ensure_dir(OUT_DIR)
+
+    # Konfiguration für Tesseract (Windows): setze env für pytesseract
+    if args.ocr:
+        # Wenn explizit angegeben
+        if args.tesseract:
+            os.environ["TESSERACT_CMD"] = args.tesseract
+        else:
+            # Auto-Detektion: gängige Standardpfade prüfen
+            cand = [
+                r"C:\\Program Files\\Tesseract-OCR\\tesseract.exe",
+                r"C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe",
+            ]
+            for c in cand:
+                if os.path.isfile(c):
+                    os.environ["TESSERACT_CMD"] = c
+                    break
+        if args.tessdata:
+            os.environ["TESSDATA_PREFIX"] = args.tessdata
+        else:
+            # Standardpfad neben tesseract.exe
+            tcmd = os.environ.get("TESSERACT_CMD", "")
+            if tcmd:
+                base = os.path.dirname(tcmd)
+                td = os.path.join(base, "tessdata")
+                if os.path.isdir(td):
+                    os.environ["TESSDATA_PREFIX"] = td
 
     catalog_rows: List[Dict[str, str]] = []
     if args.match and isinstance(args.catalog, str):
