@@ -202,11 +202,11 @@ def main():
             base_score = 0.0
 
         seg = seg_index.get((src, segi), {})
-    otext = seg.get('ocr_text','')
-    ref  = ref_index.get((src, segi), {})
-    g_title = ref.get('title_guess','') or ''
-    g_author = ref.get('author_guess','') or ''
-    g_pub = ref.get('publisher_guess','') or ''
+        otext = seg.get('ocr_text','')
+        ref  = ref_index.get((src, segi), {})
+        g_title = ref.get('title_guess','') or ''
+        g_author = ref.get('author_guess','') or ''
+        g_pub = ref.get('publisher_guess','') or ''
         text = ' '.join([hint, otext]).strip()
 
         status = 'new'

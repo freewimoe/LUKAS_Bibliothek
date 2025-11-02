@@ -246,7 +246,10 @@ function setupControls(data){
     const collapseBtns = [btnCollapseAll, btnExpandAll, btnDefault].filter(Boolean);
 
     const setActiveCollapse = (activeBtn)=>{
-      for (const b of collapseBtns){ if (!b) continue; b.classList.remove('active'); }
+      for (const b of collapseBtns){
+        if (!b) { continue; }
+        b.classList.remove('active');
+      }
       if (activeBtn) activeBtn.classList.add('active');
     };
 
