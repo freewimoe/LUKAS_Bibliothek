@@ -93,6 +93,14 @@ h1 {
 #collapseButtons .btn:hover { background: #e4ebfb; }
 #collapseButtons .btn.active { background: #1f4b9d; color: #fff; border-color: #1f4b9d; }
 
+/* Reset button distinct style */
+.btn.btn-reset {
+  background: #ffffff;
+  border: 1px solid #bcbcbc;
+  color: #333333;
+}
+.btn.btn-reset:hover { background: #f3f3f3; border-color: #a9a9a9; }
+
 /* --- Tabelle --- */
 table {
   width: 100%;
