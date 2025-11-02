@@ -54,3 +54,7 @@ desktop.ini
 # Temporäre Dateien
 *.tmp
 *.bak
+
+# Projektchroniken/Dokumentation (bewusst lokal, nicht ins Repo)
+docs/Zusammenarbeit_Chronik_*.md
+docs/Zusammenarbeit_Chronik.md
